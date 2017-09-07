@@ -100,6 +100,12 @@ class Tasks
                     $definitionID = $taskData[1];
                     if (isset($this->definitions[$definitionID])) {
                         call_user_func($this->definitions[$definitionID], $taskData[2]);
+                        if ($app->hooks->exists('taskDone')) {
+                            $hookDefinitionID = $definitionID;
+                            $hookTaskID = $taskID;
+                            $hookTaskData = $taskData[2];
+                            $app->hooks->execute('taskDone', $hookDefinitionID, $hookTaskID, $hookTaskData);
+                        }
                     }
                 }
                 $this->delete($taskID);
