@@ -17,6 +17,24 @@ class Tasks
 
     private $definitions = [];
 
+    public function __construct()
+    {
+        $this->define('--internal-add-multiple-task-definition', function($tasks) {
+            $counter = 0;
+            foreach ($tasks as $index => $task) {
+                $this->add($task['definitionID'], isset($task['data']) ? $task['data'] : [], isset($task['options']) ? $task['options'] : []);
+                unset($tasks[$index]);
+                $counter++;
+                if ($counter >= 10) {
+                    break;
+                }
+            }
+            if (!empty($tasks)) {
+                $this->addMultiple($tasks);
+            }
+        });
+    }
+
     public function define(string $definitionID, callable $handler)
     {
         $this->definitions[$definitionID] = $handler;
@@ -26,8 +44,8 @@ class Tasks
     public function add(string $definitionID, array $data = [], array $options = [])
     {
         $app = App::get();
-        $taskID = isset($options['id']) ? $options['id'] : uniqid();
-        $startTime = isset($options['startTime']) ? $options['startTime'] : null;
+        $taskID = isset($options['id']) ? (string) $options['id'] : uniqid();
+        $startTime = isset($options['startTime']) ? (int) $options['startTime'] : null;
         Lock::acquire('tasks-update');
         $list = $app->data->getValue('tasks/list');
         $list = $list === null ? [] : json_decode(gzuncompress($list), true);
@@ -45,6 +63,36 @@ class Tasks
         $app->data->setValue($this->getTaskDataKey($taskID), gzcompress(json_encode($taskData)));
         Lock::release('tasks-update');
         return $this;
+    }
+
+    public function addMultiple(array $tasks)
+    {
+        $minStartTime = null;
+        foreach ($tasks as $index => $task) {
+            if (!isset($task['definitionID'])) {
+                throw new \Exception('The definitionID key is missing for task with index ' . $index);
+            }
+            if (isset($task['data']) && !is_array($task['data'])) {
+                throw new \Exception('The \'data\' key must be of type array for index ' . $index);
+            }
+            if (isset($task['options'])) {
+                if (is_array($task['options'])) {
+                    if (isset($task['options']['startTime'])) {
+                        $startTime = (int) $task['options']['startTime'];
+                        if ($minStartTime === null || $startTime < $minStartTime) {
+                            $minStartTime = $startTime;
+                        }
+                    }
+                } else {
+                    throw new \Exception('The \'options\' key must be of type array for index ' . $index);
+                }
+            }
+        }
+        $options = [];
+        if ($minStartTime !== null) {
+            $options['startTime'] = $minStartTime;
+        }
+        $this->add('--internal-add-multiple-task-definition', $tasks, $options);
     }
 
     private function getTaskDataKey($taskID)
@@ -110,7 +158,7 @@ class Tasks
                             $definitionID = $taskData[1];
                             if (isset($this->definitions[$definitionID])) {
                                 call_user_func($this->definitions[$definitionID], $taskData[2]);
-                                if ($app->hooks->exists('taskDone')) {
+                                if ($definitionID !== '--internal-add-multiple-task-definition' && $app->hooks->exists('taskDone')) {
                                     $hookDefinitionID = $definitionID;
                                     $hookTaskID = $taskID;
                                     $hookTaskData = $taskData[2];

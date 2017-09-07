@@ -112,4 +112,38 @@ class DataTest extends BearFrameworkAddonTestCase
         $this->assertTrue($results[2] === 5);
     }
 
+    /**
+     * 
+     */
+    public function testAddMultiple()
+    {
+        $app = $this->getApp();
+        $results = [];
+        $app->tasks->define('sum', function($data) use (&$results) {
+            $results[$data['index']] = $data['a'] + $data['b'];
+        });
+
+        $expectedResults = [];
+        $tasks = [];
+        for ($i = 0; $i < 100; $i++) {
+            $taskOptions = [];
+            if ($i > 50) {
+                $taskOptions['startTime'] = time() - rand(1, 50);
+            }
+            $tasks[] = [
+                'definitionID' => 'sum',
+                'data' => ['index' => $i, 'a' => $i, 'b' => $i + 1],
+                'options' => $taskOptions
+            ];
+            $expectedResults[$i] = $i + $i + 1;
+        }
+
+        $app->tasks->addMultiple($tasks);
+        $app->tasks->execute();
+
+        foreach ($expectedResults as $index => $expectedValue) {
+            $this->assertTrue($results[$index] === $expectedValue);
+        }
+    }
+
 }
