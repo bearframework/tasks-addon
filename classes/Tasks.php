@@ -77,47 +77,68 @@ class Tasks
         if (Lock::exists('tasks-execute')) {
             return;
         }
-        Lock::acquire('tasks-execute');
         $app = App::get();
-        $list = $app->data->getValue('tasks/list');
-        $list = $list === null ? [] : json_decode(gzuncompress($list), true);
-        $list1 = []; // with specified start time
-        $list2 = []; // without specified start time
-        $currentTime = time();
-        foreach ($list as $taskID => $taskListData) {
-            if ($taskListData[0] === 1) {
-                if ($taskListData[1] === null) {
-                    $list2[$taskID] = null;
-                } else {
-                    if ($taskListData[1] <= $currentTime) {
-                        $list1[$taskID] = $taskListData[1];
-                    }
+        Lock::acquire('tasks-execute');
+        try {
+            $execute = function($maxExecutionTime) use ($app) {
+                $list = $app->data->getValue('tasks/list');
+                $list = $list === null ? [] : json_decode(gzuncompress($list), true);
+                if (empty($list)) {
+                    return true;
                 }
-            }
-        }
-        asort($list1);
-        $sortedList = array_merge(array_keys($list1), array_keys($list2));
-        foreach ($sortedList as $taskID) {
-            $taskData = $app->data->getValue($this->getTaskDataKey($taskID));
-            $taskData = $taskData === null ? [] : json_decode(gzuncompress($taskData), true);
-            if (isset($taskData[0])) {
-                if ($taskData[0] === 1) {
-                    $definitionID = $taskData[1];
-                    if (isset($this->definitions[$definitionID])) {
-                        call_user_func($this->definitions[$definitionID], $taskData[2]);
-                        if ($app->hooks->exists('taskDone')) {
-                            $hookDefinitionID = $definitionID;
-                            $hookTaskID = $taskID;
-                            $hookTaskData = $taskData[2];
-                            $app->hooks->execute('taskDone', $hookDefinitionID, $hookTaskID, $hookTaskData);
+                $list1 = []; // with specified start time
+                $list2 = []; // without specified start time
+                $currentTime = time();
+                foreach ($list as $taskID => $taskListData) {
+                    if ($taskListData[0] === 1) {
+                        if ($taskListData[1] === null) {
+                            $list2[$taskID] = null;
+                        } else {
+                            if ($taskListData[1] <= $currentTime) {
+                                $list1[$taskID] = $taskListData[1];
+                            }
                         }
                     }
                 }
-                $this->delete($taskID);
+                asort($list1);
+                $sortedList = array_merge(array_keys($list1), array_keys($list2));
+                foreach ($sortedList as $taskID) {
+                    $taskData = $app->data->getValue($this->getTaskDataKey($taskID));
+                    $taskData = $taskData === null ? [] : json_decode(gzuncompress($taskData), true);
+                    if (isset($taskData[0])) {
+                        if ($taskData[0] === 1) {
+                            $definitionID = $taskData[1];
+                            if (isset($this->definitions[$definitionID])) {
+                                call_user_func($this->definitions[$definitionID], $taskData[2]);
+                                if ($app->hooks->exists('taskDone')) {
+                                    $hookDefinitionID = $definitionID;
+                                    $hookTaskID = $taskID;
+                                    $hookTaskData = $taskData[2];
+                                    $app->hooks->execute('taskDone', $hookDefinitionID, $hookTaskID, $hookTaskData);
+                                }
+                            }
+                        }
+                        $this->delete($taskID);
+                    }
+                    if (time() - $currentTime > $maxExecutionTime) {
+                        break;
+                    }
+                }
+                return false;
+            };
+            $startTime = time();
+            for ($i = 0; $i < 100000; $i++) {
+                $currentMaxExecutionTime = $maxExecutionTime - time() + $startTime;
+                if ($currentMaxExecutionTime <= 0) {
+                    break;
+                }
+                if ($execute($currentMaxExecutionTime) === true) {
+                    break;
+                }
             }
-            if (time() - $currentTime > $maxExecutionTime) {
-                break;
-            }
+        } catch (\Exception $e) {
+            Lock::release('tasks-execute');
+            throw $e;
         }
         Lock::release('tasks-execute');
     }
