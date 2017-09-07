@@ -20,6 +20,7 @@ class Tasks
     public function define(string $definitionID, callable $handler)
     {
         $this->definitions[$definitionID] = $handler;
+        return $this;
     }
 
     public function add(string $definitionID, array $data = [], array $options = [])
@@ -43,6 +44,7 @@ class Tasks
         ];
         $app->data->setValue($this->getTaskDataKey($taskID), gzcompress(json_encode($taskData)));
         Lock::release('tasks');
+        return $this;
     }
 
     private function getTaskDataKey($taskID)
