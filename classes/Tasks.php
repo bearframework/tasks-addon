@@ -86,7 +86,7 @@ class Tasks
                 if ($taskListData[1] === null) {
                     $list2[$taskID] = null;
                 } else {
-                    if ($taskListData[1] < $currentTime) {
+                    if ($taskListData[1] <= $currentTime) {
                         $list1[$taskID] = $taskListData[1];
                     }
                 }
