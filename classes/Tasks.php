@@ -70,8 +70,9 @@ class Tasks
         Lock::release('tasks');
     }
 
-    public function execute()
+    public function execute($maxExecutionTime = 30)
     {
+
         $app = App::get();
         $list = $app->data->getValue('tasks/list');
         $list = $list === null ? [] : json_decode(gzuncompress($list), true);
@@ -102,6 +103,9 @@ class Tasks
                     }
                 }
                 $this->delete($taskID);
+            }
+            if (time() - $currentTime > $maxExecutionTime) {
+                break;
             }
         }
     }

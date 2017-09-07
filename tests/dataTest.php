@@ -56,4 +56,35 @@ class DataTest extends BearFrameworkAddonTestCase
         $this->assertTrue($results[2] === 5);
     }
 
+    /**
+     * 
+     */
+    public function testMaxExecutionTime()
+    {
+        $app = $this->getApp();
+        $results = [];
+        $app->tasks->define('sum', function($data) use (&$results) {
+            $results[] = $data['a'] + $data['b'];
+            sleep(2);
+        });
+
+        $app->tasks->add('sum', ['a' => 1, 'b' => 2]);
+        $app->tasks->add('sum', ['a' => 2, 'b' => 3]);
+        $app->tasks->add('sum', ['a' => 3, 'b' => 4]);
+        $app->tasks->add('sum', ['a' => 4, 'b' => 5]);
+        $app->tasks->execute(5);
+
+        $this->assertTrue(sizeof($results) === 3);
+        $this->assertTrue($results[0] === 3);
+        $this->assertTrue($results[1] === 5);
+        $this->assertTrue($results[2] === 7);
+
+        $results = [];
+
+        $app->tasks->execute(5);
+
+        $this->assertTrue(sizeof($results) === 1);
+        $this->assertTrue($results[0] === 9);
+    }
+
 }
