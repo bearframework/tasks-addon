@@ -77,12 +77,15 @@ class Tasks
         $list = $list === null ? [] : json_decode(gzuncompress($list), true);
         $list1 = []; // with specified start time
         $list2 = []; // without specified start time
+        $currentTime = time();
         foreach ($list as $taskID => $taskListData) {
             if ($taskListData[0] === 1) {
                 if ($taskListData[1] === null) {
                     $list2[$taskID] = null;
                 } else {
-                    $list1[$taskID] = $taskListData[1];
+                    if ($taskListData[1] < $currentTime) {
+                        $list1[$taskID] = $taskListData[1];
+                    }
                 }
             }
         }
