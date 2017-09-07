@@ -28,11 +28,11 @@ class Tasks
         $app = App::get();
         $taskID = isset($options['id']) ? $options['id'] : uniqid();
         $startTime = isset($options['startTime']) ? $options['startTime'] : null;
-        Lock::acquire('tasks');
+        Lock::acquire('tasks-update');
         $list = $app->data->getValue('tasks/list');
         $list = $list === null ? [] : json_decode(gzuncompress($list), true);
         if (isset($list[$taskID])) {
-            Lock::release('tasks');
+            Lock::release('tasks-update');
             throw new \Exception('A task with the id "' . $taskID . '" already exists!');
         }
         $list[$taskID] = [1, $startTime]; // format version, start time
@@ -43,7 +43,7 @@ class Tasks
             $data
         ];
         $app->data->setValue($this->getTaskDataKey($taskID), gzcompress(json_encode($taskData)));
-        Lock::release('tasks');
+        Lock::release('tasks-update');
         return $this;
     }
 
@@ -61,7 +61,7 @@ class Tasks
     public function delete($taskID)
     {
         $app = App::get();
-        Lock::acquire('tasks');
+        Lock::acquire('tasks-update');
         $list = $app->data->getValue('tasks/list');
         $list = $list === null ? [] : json_decode(gzuncompress($list), true);
         if (isset($list[$taskID])) {
@@ -69,12 +69,15 @@ class Tasks
             $app->data->setValue('tasks/list', gzcompress(json_encode($list)));
             $app->data->delete($this->getTaskDataKey($taskID));
         }
-        Lock::release('tasks');
+        Lock::release('tasks-update');
     }
 
     public function execute($maxExecutionTime = 30)
     {
-
+        if (Lock::exists('tasks-execute')) {
+            return;
+        }
+        Lock::acquire('tasks-execute');
         $app = App::get();
         $list = $app->data->getValue('tasks/list');
         $list = $list === null ? [] : json_decode(gzuncompress($list), true);
@@ -116,6 +119,7 @@ class Tasks
                 break;
             }
         }
+        Lock::release('tasks-execute');
     }
 
 }
