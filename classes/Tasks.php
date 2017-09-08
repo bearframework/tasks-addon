@@ -120,15 +120,15 @@ class Tasks
         Lock::release('tasks-update');
     }
 
-    public function execute($maxExecutionTime = 30)
+    public function run($maxExecutionTime = 30)
     {
-        if (Lock::exists('tasks-execute')) {
+        if (Lock::exists('tasks-run')) {
             return;
         }
         $app = App::get();
-        Lock::acquire('tasks-execute');
+        Lock::acquire('tasks-run');
         try {
-            $execute = function($maxExecutionTime) use ($app) {
+            $run = function($maxExecutionTime) use ($app) {
                 $list = $app->data->getValue('tasks/list');
                 $list = $list === null ? [] : json_decode(gzuncompress($list), true);
                 if (empty($list)) {
@@ -162,7 +162,7 @@ class Tasks
                                     $hookDefinitionID = $definitionID;
                                     $hookTaskID = $taskID;
                                     $hookTaskData = $taskData[2];
-                                    $app->hooks->execute('taskDone', $hookDefinitionID, $hookTaskID, $hookTaskData);
+                                    $app->hooks->run('taskDone', $hookDefinitionID, $hookTaskID, $hookTaskData);
                                 }
                             }
                         }
@@ -180,15 +180,15 @@ class Tasks
                 if ($currentMaxExecutionTime <= 0) {
                     break;
                 }
-                if ($execute($currentMaxExecutionTime) === true) {
+                if ($run($currentMaxExecutionTime) === true) {
                     break;
                 }
             }
         } catch (\Exception $e) {
-            Lock::release('tasks-execute');
+            Lock::release('tasks-run');
             throw $e;
         }
-        Lock::release('tasks-execute');
+        Lock::release('tasks-run');
     }
 
 }

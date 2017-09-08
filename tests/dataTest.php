@@ -26,7 +26,7 @@ class DataTest extends BearFrameworkAddonTestCase
 
         $app->tasks->add('sum', ['a' => 1, 'b' => 2]);
         $app->tasks->add('sum', ['a' => 2, 'b' => 3]);
-        $app->tasks->execute();
+        $app->tasks->run();
 
         $this->assertTrue(sizeof($results) === 2);
         $this->assertTrue($results[0] === 3);
@@ -48,7 +48,7 @@ class DataTest extends BearFrameworkAddonTestCase
         $app->tasks->add('sum', ['a' => 2, 'b' => 3]);
         $app->tasks->add('sum', ['a' => 3, 'b' => 4], ['startTime' => time() - 20]);
         $app->tasks->add('sum', ['a' => 4, 'b' => 5], ['startTime' => time() + 10]);
-        $app->tasks->execute(5);
+        $app->tasks->run(5);
 
         $this->assertTrue(sizeof($results) === 3);
         $this->assertTrue($results[0] === 7);
@@ -72,7 +72,7 @@ class DataTest extends BearFrameworkAddonTestCase
         $app->tasks->add('sum', ['a' => 2, 'b' => 3]);
         $app->tasks->add('sum', ['a' => 3, 'b' => 4]);
         $app->tasks->add('sum', ['a' => 4, 'b' => 5]);
-        $app->tasks->execute(5);
+        $app->tasks->run(5);
 
         $this->assertTrue(sizeof($results) === 3);
         $this->assertTrue($results[0] === 3);
@@ -81,7 +81,7 @@ class DataTest extends BearFrameworkAddonTestCase
 
         $results = [];
 
-        $app->tasks->execute(5);
+        $app->tasks->run(5);
 
         $this->assertTrue(sizeof($results) === 1);
         $this->assertTrue($results[0] === 9);
@@ -104,7 +104,7 @@ class DataTest extends BearFrameworkAddonTestCase
         });
 
         $app->tasks->add('add-sums');
-        $app->tasks->execute();
+        $app->tasks->run();
 
         $this->assertTrue(sizeof($results) === 3);
         $this->assertTrue($results[0] === 'add sums done');
@@ -139,7 +139,7 @@ class DataTest extends BearFrameworkAddonTestCase
         }
 
         $app->tasks->addMultiple($tasks);
-        $app->tasks->execute();
+        $app->tasks->run();
 
         foreach ($expectedResults as $index => $expectedValue) {
             $this->assertTrue($results[$index] === $expectedValue);
