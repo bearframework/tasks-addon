@@ -182,7 +182,7 @@ class Tasks
                                     $hookDefinitionID = $definitionID;
                                     $hookTaskID = $taskID;
                                     $hookTaskData = $taskData[2];
-                                    $app->hooks->run('taskDone', $hookDefinitionID, $hookTaskID, $hookTaskData);
+                                    $app->hooks->execute('taskDone', $hookDefinitionID, $hookTaskID, $hookTaskData);
                                 }
                             }
                         }
