@@ -45,29 +45,32 @@ class Tasks
     {
         $app = App::get();
         $taskID = isset($options['id']) ? (string) $options['id'] : uniqid();
+        $listID = isset($options['listID']) ? (string) $options['listID'] : '';
         $startTime = isset($options['startTime']) ? (int) $options['startTime'] : null;
-        Lock::acquire('tasks-update');
-        $list = $app->data->getValue('tasks/list');
+        $lockKey = 'tasks-update-' . md5($listID);
+        Lock::acquire($lockKey);
+        $listDataKey = $this->getListDataKey($listID);
+        $list = $app->data->getValue($listDataKey);
         $list = $list === null ? [] : json_decode(gzuncompress($list), true);
         if (isset($list[$taskID])) {
-            Lock::release('tasks-update');
-            throw new \Exception('A task with the id "' . $taskID . '" already exists!');
+            Lock::release($lockKey);
+            throw new \Exception('A task with the id "' . $taskID . '" already exists in list named \'' . $listID . '\'!');
         }
         $list[$taskID] = [1, $startTime]; // format version, start time
-        $app->data->setValue('tasks/list', gzcompress(json_encode($list)));
+        $app->data->setValue($listDataKey, gzcompress(json_encode($list)));
         $taskData = [
             1, // format version
             $definitionID,
             $data
         ];
-        $app->data->setValue($this->getTaskDataKey($taskID), gzcompress(json_encode($taskData)));
-        Lock::release('tasks-update');
+        $app->data->setValue($this->getTaskDataKey($taskID, $listID), gzcompress(json_encode($taskData)));
+        Lock::release($lockKey);
         return $this;
     }
 
     public function addMultiple(array $tasks)
     {
-        $minStartTime = null;
+        $taskLists = [];
         foreach ($tasks as $index => $task) {
             if (!isset($task['definitionID'])) {
                 throw new \Exception('The definitionID key is missing for task with index ' . $index);
@@ -75,61 +78,78 @@ class Tasks
             if (isset($task['data']) && !is_array($task['data'])) {
                 throw new \Exception('The \'data\' key must be of type array for index ' . $index);
             }
+            $listID = '';
+            $startTime = null;
             if (isset($task['options'])) {
                 if (is_array($task['options'])) {
+                    if (isset($task['options']['listID'])) {
+                        $listID = (string) $task['options']['listID'];
+                    }
                     if (isset($task['options']['startTime'])) {
                         $startTime = (int) $task['options']['startTime'];
-                        if ($minStartTime === null || $startTime < $minStartTime) {
-                            $minStartTime = $startTime;
-                        }
                     }
                 } else {
                     throw new \Exception('The \'options\' key must be of type array for index ' . $index);
                 }
             }
+            if (!isset($taskLists[$listID])) {
+                $taskLists[$listID] = [
+                    'minStartTime' => null,
+                    'data' => []
+                ];
+            }
+
+            if ($startTime !== null && $taskLists[$listID]['minStartTime'] === null || $startTime < $taskLists[$listID]['minStartTime']) {
+                $taskLists[$listID]['minStartTime'] = $startTime;
+            }
+            $taskLists[$listID]['data'][] = $task;
         }
-        $options = [];
-        if ($minStartTime !== null) {
-            $options['startTime'] = $minStartTime;
+        foreach ($taskLists as $listID => $taskListData) {
+            $options = [];
+            $options['listID'] = $listID;
+            if ($taskListData['minStartTime'] !== null) {
+                $options['startTime'] = $taskListData['minStartTime'];
+            }
+            $this->add('--internal-add-multiple-task-definition', $taskListData['data'], $options);
         }
-        $this->add('--internal-add-multiple-task-definition', $tasks, $options);
     }
 
-    private function getTaskDataKey($taskID)
-    {
-        return 'tasks/task/' . substr(md5($taskID), 0, 2) . '/' . md5($taskID);
-    }
-
-    public function exists($taskID)
+    public function exists(string $taskID, string $listID = '')
     {
         $app = App::get();
-        return $app->data->exists($this->getTaskDataKey($taskID));
+        return $app->data->exists($this->getTaskDataKey($taskID, $listID));
     }
 
-    public function delete($taskID)
+    public function delete(string $taskID, string $listID = '')
     {
         $app = App::get();
-        Lock::acquire('tasks-update');
-        $list = $app->data->getValue('tasks/list');
+        $lockKey = 'tasks-update-' . md5($listID);
+        Lock::acquire($lockKey);
+        $listDataKey = $this->getListDataKey($listID);
+        $list = $app->data->getValue($listDataKey);
         $list = $list === null ? [] : json_decode(gzuncompress($list), true);
         if (isset($list[$taskID])) {
             unset($list[$taskID]);
-            $app->data->setValue('tasks/list', gzcompress(json_encode($list)));
-            $app->data->delete($this->getTaskDataKey($taskID));
+            $app->data->setValue($listDataKey, gzcompress(json_encode($list)));
+            $app->data->delete($this->getTaskDataKey($taskID, $listID));
         }
-        Lock::release('tasks-update');
+        Lock::release($lockKey);
     }
 
-    public function run($maxExecutionTime = 30)
+    public function run(array $options = [])
     {
-        if (Lock::exists('tasks-run')) {
+        $listID = isset($options['listID']) ? (string) $options['listID'] : '';
+        $lockKey = 'tasks-run-' . md5($listID);
+        if (Lock::exists($lockKey)) {
             return;
         }
+        $maxExecutionTime = isset($options['maxExecutionTime']) ? (int) $options['maxExecutionTime'] : 30;
         $app = App::get();
-        Lock::acquire('tasks-run');
+        Lock::acquire($lockKey);
+        $listDataKey = $this->getListDataKey($listID);
         try {
-            $run = function($maxExecutionTime) use ($app) {
-                $list = $app->data->getValue('tasks/list');
+            $run = function($maxExecutionTime) use ($app, $listDataKey, $listID) {
+                $list = $app->data->getValue($listDataKey);
                 $list = $list === null ? [] : json_decode(gzuncompress($list), true);
                 if (empty($list)) {
                     return true;
@@ -151,7 +171,7 @@ class Tasks
                 asort($list1);
                 $sortedList = array_merge(array_keys($list1), array_keys($list2));
                 foreach ($sortedList as $taskID) {
-                    $taskData = $app->data->getValue($this->getTaskDataKey($taskID));
+                    $taskData = $app->data->getValue($this->getTaskDataKey($taskID, $listID));
                     $taskData = $taskData === null ? [] : json_decode(gzuncompress($taskData), true);
                     if (isset($taskData[0])) {
                         if ($taskData[0] === 1) {
@@ -166,7 +186,7 @@ class Tasks
                                 }
                             }
                         }
-                        $this->delete($taskID);
+                        $this->delete($taskID, $listID);
                     }
                     if (time() - $currentTime > $maxExecutionTime) {
                         break;
@@ -185,10 +205,20 @@ class Tasks
                 }
             }
         } catch (\Exception $e) {
-            Lock::release('tasks-run');
+            Lock::release($lockKey);
             throw $e;
         }
-        Lock::release('tasks-run');
+        Lock::release($lockKey);
+    }
+
+    private function getListDataKey(string $listID)
+    {
+        return 'tasks/list' . ($listID === '' ? '' : '.' . md5($listID));
+    }
+
+    private function getTaskDataKey(string $taskID, string $listID)
+    {
+        return 'tasks/task' . ($listID === '' ? '' : '.' . md5($listID)) . '/' . substr(md5($taskID), 0, 2) . '/' . md5($taskID);
     }
 
 }
