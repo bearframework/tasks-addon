@@ -22,7 +22,7 @@ class Tasks
         $this->define('--internal-add-multiple-task-definition', function($tasks) {
             $counter = 0;
             foreach ($tasks as $index => $task) {
-                $this->add($task['definitionID'], isset($task['data']) ? $task['data'] : [], isset($task['options']) ? $task['options'] : []);
+                $this->add($task['definitionID'], isset($task['data']) ? $task['data'] : null, isset($task['options']) ? $task['options'] : []);
                 unset($tasks[$index]);
                 $counter++;
                 if ($counter >= 10) {
@@ -41,7 +41,7 @@ class Tasks
         return $this;
     }
 
-    public function add(string $definitionID, array $data = [], array $options = [])
+    public function add(string $definitionID, $data = null, array $options = [])
     {
         $app = App::get();
         $taskID = isset($options['id']) ? (string) $options['id'] : uniqid();
@@ -74,9 +74,6 @@ class Tasks
         foreach ($tasks as $index => $task) {
             if (!isset($task['definitionID'])) {
                 throw new \Exception('The definitionID key is missing for task with index ' . $index);
-            }
-            if (isset($task['data']) && !is_array($task['data'])) {
-                throw new \Exception('The \'data\' key must be of type array for index ' . $index);
             }
             $listID = '';
             $startTime = null;

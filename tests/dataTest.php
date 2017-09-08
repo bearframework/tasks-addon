@@ -233,4 +233,26 @@ class DataTest extends BearFrameworkAddonTestCase
         }
     }
 
+    /**
+     * 
+     */
+    public function testDifferentDataTypes()
+    {
+        $app = $this->getApp();
+        $results = [];
+        $app->tasks->define('sum', function($data) use (&$results) {
+            $results[] = gettype($data);
+        });
+
+        $app->tasks->add('sum', 5);
+        $app->tasks->add('sum', 'string');
+        $app->tasks->add('sum', []);
+        $app->tasks->run();
+
+        $this->assertTrue(sizeof($results) === 3);
+        $this->assertTrue($results[0] === 'integer');
+        $this->assertTrue($results[1] === 'string');
+        $this->assertTrue($results[2] === 'array');
+    }
+
 }
