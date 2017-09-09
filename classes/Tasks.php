@@ -173,13 +173,20 @@ class Tasks
                     if (isset($taskData[0])) {
                         if ($taskData[0] === 1) {
                             $definitionID = $taskData[1];
+                            $handlerData = $taskData[2];
+                            $isInternalTask = $definitionID === '--internal-add-multiple-task-definition';
+                            if (!$isInternalTask && $app->hooks->exists('taskRun')) {
+                                $definitionIDCopy = $definitionID;
+                                $taskIDCopy = $taskID;
+                                $app->hooks->execute('taskRun', $definitionIDCopy, $taskIDCopy, $handlerData);
+                            }
                             if (isset($this->definitions[$definitionID])) {
                                 call_user_func($this->definitions[$definitionID], $taskData[2]);
-                                if ($definitionID !== '--internal-add-multiple-task-definition' && $app->hooks->exists('taskDone')) {
-                                    $hookDefinitionID = $definitionID;
-                                    $hookTaskID = $taskID;
-                                    $hookTaskData = $taskData[2];
-                                    $app->hooks->execute('taskDone', $hookDefinitionID, $hookTaskID, $hookTaskData);
+                                if (!$isInternalTask && $app->hooks->exists('taskRunDone')) {
+                                    $definitionIDCopy = $definitionID;
+                                    $taskIDCopy = $taskID;
+                                    $handlerDataCopy = is_object($handlerData) ? clone($handlerData) : $handlerData;
+                                    $app->hooks->execute('taskRunDone', $definitionIDCopy, $taskIDCopy, $handlerDataCopy);
                                 }
                             }
                         }
