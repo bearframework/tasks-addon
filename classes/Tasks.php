@@ -167,6 +167,9 @@ class Tasks
                 }
                 asort($list1);
                 $sortedList = array_merge(array_keys($list1), array_keys($list2));
+                if (empty($sortedList)) {
+                    return true;
+                }
                 foreach ($sortedList as $taskID) {
                     $taskData = $app->data->getValue($this->getTaskDataKey($taskID, $listID));
                     $taskData = $taskData === null ? [] : json_decode(gzuncompress($taskData), true);
@@ -199,7 +202,7 @@ class Tasks
                 return false;
             };
             $startTime = time();
-            for ($i = 0; $i < 100000; $i++) {
+            for ($i = 0; $i < 10000; $i++) {
                 $currentMaxExecutionTime = $maxExecutionTime - time() + $startTime;
                 if ($currentMaxExecutionTime <= 0) {
                     break;
