@@ -44,10 +44,11 @@ class DataTest extends BearFrameworkAddonTestCase
             $results[] = $data['a'] + $data['b'];
         });
 
-        $app->tasks->add('sum', ['a' => 1, 'b' => 2], ['startTime' => time() - 10]);
+        $currentTime = time();
+        $app->tasks->add('sum', ['a' => 1, 'b' => 2], ['startTime' => $currentTime - 10]);
         $app->tasks->add('sum', ['a' => 2, 'b' => 3]);
-        $app->tasks->add('sum', ['a' => 3, 'b' => 4], ['startTime' => time() - 20]);
-        $app->tasks->add('sum', ['a' => 4, 'b' => 5], ['startTime' => time() + 10]);
+        $app->tasks->add('sum', ['a' => 3, 'b' => 4], ['startTime' => $currentTime - 20]);
+        $app->tasks->add('sum', ['a' => 4, 'b' => 5], ['startTime' => $currentTime + 10]);
         $app->tasks->run([
             'maxExecutionTime' => 5
         ]);
@@ -56,6 +57,37 @@ class DataTest extends BearFrameworkAddonTestCase
         $this->assertTrue($results[0] === 7);
         $this->assertTrue($results[1] === 3);
         $this->assertTrue($results[2] === 5);
+    }
+
+    /**
+     * 
+     */
+    public function testGetMinStartDate1()
+    {
+        $app = $this->getApp();
+
+        $currentTime = time();
+        $this->assertTrue($app->tasks->getMinStartTime() === null);
+        $app->tasks->add('sum', null, ['startTime' => $currentTime + 10]);
+        $this->assertTrue($app->tasks->getMinStartTime() === $currentTime + 10);
+        $app->tasks->add('sum', null);
+        $this->assertTrue($app->tasks->getMinStartTime() === time());
+        $app->tasks->add('sum', null, ['startTime' => $currentTime - 10]);
+        $this->assertTrue($app->tasks->getMinStartTime() === $currentTime - 10);
+        $app->tasks->add('sum', null, ['startTime' => $currentTime - 20]);
+        $this->assertTrue($app->tasks->getMinStartTime() === $currentTime - 20);
+    }
+    
+    /**
+     * 
+     */
+    public function testGetMinStartDate2()
+    {
+        $app = $this->getApp();
+
+        $this->assertTrue($app->tasks->getMinStartTime() === null);
+        $app->tasks->add('sum', null);
+        $this->assertTrue($app->tasks->getMinStartTime() === time());
     }
 
     /**

@@ -208,11 +208,11 @@ class Tasks
                 $list2 = []; // without specified start time
                 $currentTime = time();
                 foreach ($list as $taskID => $taskListData) {
-                    if ($taskListData[0] === 1) {
-                        if ($taskListData[1] === null) {
+                    if ($taskListData[0] === 1) { // version check
+                        if ($taskListData[1] === null) { // does not have start time
                             $list2[$taskID] = null;
                         } else {
-                            if ($taskListData[1] <= $currentTime) {
+                            if ($taskListData[1] <= $currentTime) { // has start time and it is lower than the current time
                                 $list1[$taskID] = $taskListData[1];
                             }
                         }
@@ -270,6 +270,44 @@ class Tasks
         }
         $app->locks->release($lockKey);
         return $this;
+    }
+
+    /**
+     * Returns the minimum start time of the tasks in the list specified.
+     * @param string $listID The list ID.
+     * @return int|null The minimum start time of the tasks in the list specified. Returns NULL if no tasks exists.
+     */
+    public function getMinStartTime(string $listID = ''): ?int
+    {
+        $app = App::get();
+        $listDataKey = $this->getListDataKey($listID);
+        $list = $app->data->getValue($listDataKey);
+        $list = $list === null ? [] : json_decode(gzuncompress($list), true);
+        if (empty($list)) {
+            return null;
+        }
+        $minStartTime = null;
+        $hasTaskWithoutStartDate = false;
+        foreach ($list as $taskID => $taskListData) {
+            if ($taskListData[0] === 1) { // version check
+                if ($taskListData[1] === null) { // does not have start time
+                    $hasTaskWithoutStartDate = true;
+                } else { // has start time
+                    if ($minStartTime === null || $taskListData[1] < $minStartTime) {
+                        $minStartTime = $taskListData[1];
+                    }
+                }
+            }
+        }
+        $currentTime = time();
+        if ($minStartTime === null) {
+            return $currentTime;
+        }
+        if ($hasTaskWithoutStartDate) {
+            return $minStartTime < $currentTime ? $minStartTime : $currentTime;
+        } else {
+            return $minStartTime;
+        }
     }
 
     /**
