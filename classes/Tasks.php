@@ -88,6 +88,7 @@ class Tasks
         ];
         $app->data->setValue($this->getTaskDataKey($taskID, $listID), gzcompress(json_encode($taskData)));
         $app->locks->release($lockKey);
+        $app->hooks->execute('taskAdded');
         return $this;
     }
 
