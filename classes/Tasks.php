@@ -10,7 +10,6 @@
 namespace BearFramework;
 
 use BearFramework\App;
-use IvoPetkov\Lock;
 
 class Tasks
 {
@@ -48,12 +47,12 @@ class Tasks
         $listID = isset($options['listID']) ? (string) $options['listID'] : '';
         $startTime = isset($options['startTime']) ? (int) $options['startTime'] : null;
         $lockKey = 'tasks-update-' . md5($listID);
-        Lock::acquire($lockKey);
+        $app->locks->acquire($lockKey);
         $listDataKey = $this->getListDataKey($listID);
         $list = $app->data->getValue($listDataKey);
         $list = $list === null ? [] : json_decode(gzuncompress($list), true);
         if (isset($list[$taskID])) {
-            Lock::release($lockKey);
+            $app->locks->release($lockKey);
             throw new \Exception('A task with the id "' . $taskID . '" already exists in list named \'' . $listID . '\'!');
         }
         $list[$taskID] = [1, $startTime]; // format version, start time
@@ -64,7 +63,7 @@ class Tasks
             $data
         ];
         $app->data->setValue($this->getTaskDataKey($taskID, $listID), gzcompress(json_encode($taskData)));
-        Lock::release($lockKey);
+        $app->locks->release($lockKey);
         return $this;
     }
 
@@ -121,7 +120,7 @@ class Tasks
     {
         $app = App::get();
         $lockKey = 'tasks-update-' . md5($listID);
-        Lock::acquire($lockKey);
+        $app->locks->acquire($lockKey);
         $listDataKey = $this->getListDataKey($listID);
         $list = $app->data->getValue($listDataKey);
         $list = $list === null ? [] : json_decode(gzuncompress($list), true);
@@ -130,19 +129,20 @@ class Tasks
             $app->data->setValue($listDataKey, gzcompress(json_encode($list)));
             $app->data->delete($this->getTaskDataKey($taskID, $listID));
         }
-        Lock::release($lockKey);
+        $app->locks->release($lockKey);
     }
 
     public function run(array $options = [])
     {
+        $app = App::get();
         $listID = isset($options['listID']) ? (string) $options['listID'] : '';
         $lockKey = 'tasks-run-' . md5($listID);
-        if (Lock::exists($lockKey)) {
+        if ($app->locks->exists($lockKey)) {
             return;
         }
         $maxExecutionTime = isset($options['maxExecutionTime']) ? (int) $options['maxExecutionTime'] : 30;
         $app = App::get();
-        Lock::acquire($lockKey);
+        $app->locks->acquire($lockKey);
         $listDataKey = $this->getListDataKey($listID);
         try {
             $run = function($maxExecutionTime) use ($app, $listDataKey, $listID) {
@@ -212,10 +212,10 @@ class Tasks
                 }
             }
         } catch (\Exception $e) {
-            Lock::release($lockKey);
+            $app->locks->release($lockKey);
             throw $e;
         }
-        Lock::release($lockKey);
+        $app->locks->release($lockKey);
     }
 
     private function getListDataKey(string $listID)

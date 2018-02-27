@@ -7,4 +7,8 @@
  * Free to use under the MIT license.
  */
 
-BearFramework\Addons::register('bearframework/tasks-addon', __DIR__);
+BearFramework\Addons::register('bearframework/tasks-addon', __DIR__, [
+    'require' => [
+        'ivopetkov/locks-bearframework-addon'
+    ]
+]);
