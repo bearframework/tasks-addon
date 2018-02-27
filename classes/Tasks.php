@@ -104,6 +104,9 @@ class Tasks
             if (!isset($task['definitionID'])) {
                 throw new \Exception('The definitionID key is missing for task with index ' . $index);
             }
+            if (!is_string($task['definitionID'])) {
+                throw new \Exception('The definitionID key must be of type string for index ' . $index);
+            }
             $listID = '';
             $startTime = null;
             if (isset($task['options'])) {
@@ -124,8 +127,7 @@ class Tasks
                     'data' => []
                 ];
             }
-
-            if ($startTime !== null && $taskLists[$listID]['minStartTime'] === null || $startTime < $taskLists[$listID]['minStartTime']) {
+            if ($startTime !== null && ($taskLists[$listID]['minStartTime'] === null || $startTime < $taskLists[$listID]['minStartTime'])) {
                 $taskLists[$listID]['minStartTime'] = $startTime;
             }
             $taskLists[$listID]['data'][] = $task;
