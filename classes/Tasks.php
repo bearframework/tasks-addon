@@ -11,11 +11,21 @@ namespace BearFramework;
 
 use BearFramework\App;
 
+/**
+ * 
+ */
 class Tasks
 {
 
+    /**
+     *
+     * @var array 
+     */
     private $definitions = [];
 
+    /**
+     * 
+     */
     public function __construct()
     {
         $this->define('--internal-add-multiple-task-definition', function($tasks) {
@@ -34,13 +44,27 @@ class Tasks
         });
     }
 
-    public function define(string $definitionID, callable $handler)
+    /**
+     * Defines a new task.
+     * @param string $definitionID The ID of the definition.
+     * @param callable $handler The function that will be called when a task of this type is ran.
+     * @return \BearFramework\Tasks Returns an instance to itself.
+     */
+    public function define(string $definitionID, callable $handler): \BearFramework\Tasks
     {
         $this->definitions[$definitionID] = $handler;
         return $this;
     }
 
-    public function add(string $definitionID, $data = null, array $options = [])
+    /**
+     * Adds a new tasks.
+     * @param string $definitionID The ID of the definition.
+     * @param mixed $data A task data that will be passed to the handler.
+     * @param array $options Available options: id - the ID of the task, listID - the ID of the tasks list, startTime - the earliest time to start the task
+     * @return \BearFramework\Tasks Returns an instance to itself.
+     * @throws \Exception
+     */
+    public function add(string $definitionID, $data = null, array $options = []): \BearFramework\Tasks
     {
         $app = App::get();
         $taskID = isset($options['id']) ? (string) $options['id'] : uniqid();
@@ -67,7 +91,13 @@ class Tasks
         return $this;
     }
 
-    public function addMultiple(array $tasks)
+    /**
+     * Adds multiple tasks.
+     * @param array $tasks Format: [['definitionID'=>'...', 'data'=>'...', 'options'=>'...']]
+     * @return \BearFramework\Tasks Returns an instance to itself.
+     * @throws \Exception
+     */
+    public function addMultiple(array $tasks): \BearFramework\Tasks
     {
         $taskLists = [];
         foreach ($tasks as $index => $task) {
@@ -108,15 +138,28 @@ class Tasks
             }
             $this->add('--internal-add-multiple-task-definition', $taskListData['data'], $options);
         }
+        return $this;
     }
 
-    public function exists(string $taskID, string $listID = '')
+    /**
+     * Checks if a task exists.
+     * @param string $taskID The ID of the task.
+     * @param string $listID The ID of the tasks lists.
+     * @return boolean
+     */
+    public function exists(string $taskID, string $listID = ''): bool
     {
         $app = App::get();
         return $app->data->exists($this->getTaskDataKey($taskID, $listID));
     }
 
-    public function delete(string $taskID, string $listID = '')
+    /**
+     * Deletes a task.
+     * @param string $taskID The ID of the task.
+     * @param string $listID The ID of the tasks lists.
+     * @return \BearFramework\Tasks Returns an instance to itself.
+     */
+    public function delete(string $taskID, string $listID = ''): \BearFramework\Tasks
     {
         $app = App::get();
         $lockKey = 'tasks-update-' . md5($listID);
@@ -130,15 +173,22 @@ class Tasks
             $app->data->delete($this->getTaskDataKey($taskID, $listID));
         }
         $app->locks->release($lockKey);
+        return $this;
     }
 
-    public function run(array $options = [])
+    /**
+     * Run the tasks.
+     * @param array $options Available values: listID - the ID of the list whose tasks to run, maxExecutionTime - max time in seconds to run tasks (default is 30).
+     * @return \BearFramework\Tasks Returns an instance to itself.
+     * @throws \Exception
+     */
+    public function run(array $options = []): \BearFramework\Tasks
     {
         $app = App::get();
         $listID = isset($options['listID']) ? (string) $options['listID'] : '';
         $lockKey = 'tasks-run-' . md5($listID);
         if ($app->locks->exists($lockKey)) {
-            return;
+            return $this;
         }
         $maxExecutionTime = isset($options['maxExecutionTime']) ? (int) $options['maxExecutionTime'] : 30;
         $app = App::get();
@@ -216,14 +266,26 @@ class Tasks
             throw $e;
         }
         $app->locks->release($lockKey);
+        return $this;
     }
 
-    private function getListDataKey(string $listID)
+    /**
+     * 
+     * @param string $listID
+     * @return string
+     */
+    private function getListDataKey(string $listID): string
     {
         return 'tasks/list' . ($listID === '' ? '' : '.' . md5($listID));
     }
 
-    private function getTaskDataKey(string $taskID, string $listID)
+    /**
+     * 
+     * @param string $taskID
+     * @param string $listID
+     * @return string
+     */
+    private function getTaskDataKey(string $taskID, string $listID): string
     {
         return 'tasks/task' . ($listID === '' ? '' : '.' . md5($listID)) . '/' . substr(md5($taskID), 0, 2) . '/' . md5($taskID);
     }
