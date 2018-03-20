@@ -77,7 +77,7 @@ class DataTest extends BearFrameworkAddonTestCase
         $app->tasks->add('sum', null, ['startTime' => $currentTime - 20]);
         $this->assertTrue($app->tasks->getMinStartTime() === $currentTime - 20);
     }
-    
+
     /**
      * 
      */
@@ -316,6 +316,26 @@ class DataTest extends BearFrameworkAddonTestCase
         $this->assertTrue($hooksLog[1] === ['taskRunDone', 'sum', 'sum1', ['a' => 1, 'b' => 2]]);
         $this->assertTrue($hooksLog[2] === ['taskRun', 'sum', 'sum2', ['a' => 2, 'b' => 3]]);
         $this->assertTrue($hooksLog[3] === ['taskRunDone', 'sum', 'sum2', ['a' => 2, 'b' => 3]]);
+    }
+
+    /**
+     * 
+     */
+    public function testGetStats()
+    {
+        $app = $this->getApp();
+        $app->tasks->define('sum', function($data) {
+            
+        });
+
+        $currentTime = time();
+        $app->tasks->add('sum', ['a' => 1, 'b' => 2], ['startTime' => $currentTime - 5]);
+        $app->tasks->add('sum', ['a' => 2, 'b' => 3]);
+
+        $stats = $app->tasks->getStats();
+        $this->assertTrue($stats['upcomingTasksCount'] === 2);
+        $this->assertTrue(sizeof($stats['upcomingTasks']) === 2);
+        $this->assertTrue($stats['nextTaskStartTime'] === $currentTime - 5);
     }
 
 }

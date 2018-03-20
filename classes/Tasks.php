@@ -306,6 +306,36 @@ class Tasks
     }
 
     /**
+     * Returns information about the tasks in the list specified.
+     * 
+     * @param string $listID
+     * @return array
+     */
+    public function getStats(string $listID = ''): array
+    {
+        $result = [];
+        $result['upcomingTasksCount'] = 0;
+        $result['upcomingTasks'] = [];
+        $result['nextTaskStartTime'] = null;
+
+        $currentTime = time();
+        $list = $this->getListData($listID);
+        foreach ($list as $taskID => $taskListData) {
+            $result['upcomingTasksCount'] ++;
+            if ($taskListData[0] === 1) { // version check
+                $startTime = $taskListData[1];
+                $result['upcomingTasks'][] = ['id' => $taskID, 'startTime' => $startTime];
+                $tempStartTime = $startTime === null ? $currentTime : $startTime;
+                if ($result['nextTaskStartTime'] === null || $result['nextTaskStartTime'] > $tempStartTime) {
+                    $result['nextTaskStartTime'] = $tempStartTime;
+                }
+            }
+        }
+
+        return $result;
+    }
+
+    /**
      * 
      * @param string $listID
      * @return array
