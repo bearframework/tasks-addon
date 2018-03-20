@@ -46,6 +46,7 @@ class Tasks
 
     /**
      * Defines a new task.
+     * 
      * @param string $definitionID The ID of the definition.
      * @param callable $handler The function that will be called when a task of this type is ran.
      * @return \BearFramework\Tasks Returns an instance to itself.
@@ -58,6 +59,7 @@ class Tasks
 
     /**
      * Adds a new tasks.
+     * 
      * @param string $definitionID The ID of the definition.
      * @param mixed $data A task data that will be passed to the handler.
      * @param array $options Available options: id - the ID of the task, listID - the ID of the tasks list, startTime - the earliest time to start the task
@@ -70,30 +72,28 @@ class Tasks
         $taskID = isset($options['id']) ? (string) $options['id'] : uniqid();
         $listID = isset($options['listID']) ? (string) $options['listID'] : '';
         $startTime = isset($options['startTime']) ? (int) $options['startTime'] : null;
-        $lockKey = 'tasks-update-' . md5($listID);
-        $app->locks->acquire($lockKey);
-        $listDataKey = $this->getListDataKey($listID);
-        $list = $app->data->getValue($listDataKey);
-        $list = $list === null ? [] : json_decode(gzuncompress($list), true);
+        $this->lockList($listID);
+        $list = $this->getListData($listID);
         if (isset($list[$taskID])) {
-            $app->locks->release($lockKey);
+            $this->unlockList($listID);
             throw new \Exception('A task with the id "' . $taskID . '" already exists in list named \'' . $listID . '\'!');
         }
         $list[$taskID] = [1, $startTime]; // format version, start time
-        $app->data->setValue($listDataKey, gzcompress(json_encode($list)));
+        $this->setListData($listID, $list);
         $taskData = [
             1, // format version
             $definitionID,
             $data
         ];
         $app->data->setValue($this->getTaskDataKey($taskID, $listID), gzcompress(json_encode($taskData)));
-        $app->locks->release($lockKey);
+        $this->unlockList($listID);
         $app->hooks->execute('taskAdded');
         return $this;
     }
 
     /**
      * Adds multiple tasks.
+     * 
      * @param array $tasks Format: [['definitionID'=>'...', 'data'=>'...', 'options'=>'...']]
      * @return \BearFramework\Tasks Returns an instance to itself.
      * @throws \Exception
@@ -146,6 +146,7 @@ class Tasks
 
     /**
      * Checks if a task exists.
+     * 
      * @param string $taskID The ID of the task.
      * @param string $listID The ID of the tasks lists.
      * @return boolean
@@ -158,6 +159,7 @@ class Tasks
 
     /**
      * Deletes a task.
+     * 
      * @param string $taskID The ID of the task.
      * @param string $listID The ID of the tasks lists.
      * @return \BearFramework\Tasks Returns an instance to itself.
@@ -165,22 +167,20 @@ class Tasks
     public function delete(string $taskID, string $listID = ''): \BearFramework\Tasks
     {
         $app = App::get();
-        $lockKey = 'tasks-update-' . md5($listID);
-        $app->locks->acquire($lockKey);
-        $listDataKey = $this->getListDataKey($listID);
-        $list = $app->data->getValue($listDataKey);
-        $list = $list === null ? [] : json_decode(gzuncompress($list), true);
+        $this->lockList($listID);
+        $list = $this->getListData($listID);
         if (isset($list[$taskID])) {
             unset($list[$taskID]);
-            $app->data->setValue($listDataKey, gzcompress(json_encode($list)));
+            $this->setListData($listID, $list);
             $app->data->delete($this->getTaskDataKey($taskID, $listID));
         }
-        $app->locks->release($lockKey);
+        $this->unlockList($listID);
         return $this;
     }
 
     /**
      * Run the tasks.
+     * 
      * @param array $options Available values: listID - the ID of the list whose tasks to run, maxExecutionTime - max time in seconds to run tasks (default is 30).
      * @return \BearFramework\Tasks Returns an instance to itself.
      * @throws \Exception
@@ -193,14 +193,11 @@ class Tasks
         if ($app->locks->exists($lockKey)) {
             return $this;
         }
-        $maxExecutionTime = isset($options['maxExecutionTime']) ? (int) $options['maxExecutionTime'] : 30;
-        $app = App::get();
         $app->locks->acquire($lockKey);
-        $listDataKey = $this->getListDataKey($listID);
+        $maxExecutionTime = isset($options['maxExecutionTime']) ? (int) $options['maxExecutionTime'] : 30;
         try {
-            $run = function($maxExecutionTime) use ($app, $listDataKey, $listID) {
-                $list = $app->data->getValue($listDataKey);
-                $list = $list === null ? [] : json_decode(gzuncompress($list), true);
+            $run = function($maxExecutionTime) use ($app, $listID) {
+                $list = $this->getListData($listID);
                 if (empty($list)) {
                     return true;
                 }
@@ -274,21 +271,19 @@ class Tasks
 
     /**
      * Returns the minimum start time of the tasks in the list specified.
+     * 
      * @param string $listID The list ID.
      * @return int|null The minimum start time of the tasks in the list specified. Returns NULL if no tasks exists.
      */
     public function getMinStartTime(string $listID = ''): ?int
     {
-        $app = App::get();
-        $listDataKey = $this->getListDataKey($listID);
-        $list = $app->data->getValue($listDataKey);
-        $list = $list === null ? [] : json_decode(gzuncompress($list), true);
+        $list = $this->getListData($listID);
         if (empty($list)) {
             return null;
         }
         $minStartTime = null;
         $hasTaskWithoutStartDate = false;
-        foreach ($list as $taskID => $taskListData) {
+        foreach ($list as $taskListData) {
             if ($taskListData[0] === 1) { // version check
                 if ($taskListData[1] === null) { // does not have start time
                     $hasTaskWithoutStartDate = true;
@@ -313,6 +308,40 @@ class Tasks
     /**
      * 
      * @param string $listID
+     * @return array
+     * @throws \Exception
+     */
+    private function getListData(string $listID): array
+    {
+        $app = App::get();
+        $listDataKey = $this->getListDataKey($listID);
+        $list = $app->data->getValue($listDataKey);
+        $list = $list === null ? [] : json_decode(gzuncompress($list), true);
+        if (!is_array($list)) {
+            throw new \Exception('Corruped tasks list data (' . $listID . ')!');
+        }
+        return $list;
+    }
+
+    /**
+     * 
+     * @param string $listID
+     * @param array $data
+     */
+    private function setListData(string $listID, array $data): void
+    {
+        $app = App::get();
+        $listDataKey = $this->getListDataKey($listID);
+        if (empty($data)) {
+            $app->data->delete($listDataKey);
+        } else {
+            $app->data->setValue($listDataKey, gzcompress(json_encode($data)));
+        }
+    }
+
+    /**
+     * 
+     * @param string $listID
      * @return string
      */
     private function getListDataKey(string $listID): string
@@ -329,6 +358,26 @@ class Tasks
     private function getTaskDataKey(string $taskID, string $listID): string
     {
         return 'tasks/task' . ($listID === '' ? '' : '.' . md5($listID)) . '/' . substr(md5($taskID), 0, 2) . '/' . md5($taskID);
+    }
+
+    /**
+     * 
+     * @param string $listID
+     */
+    private function lockList(string $listID): void
+    {
+        $app = App::get();
+        $app->locks->acquire('tasks-update-' . md5($listID));
+    }
+
+    /**
+     * 
+     * @param string $listID
+     */
+    private function unlockList(string $listID): void
+    {
+        $app = App::get();
+        $app->locks->release('tasks-update-' . md5($listID));
     }
 
 }
