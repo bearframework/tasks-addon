@@ -245,11 +245,11 @@ class Tasks
                         }
                         $this->delete($taskID, $listID);
                     }
-                    if (time() - $currentTime > $maxExecutionTime) {
-                        break;
+                    if (time() - $currentTime >= $maxExecutionTime) {
+                        return false;
                     }
                 }
-                return false;
+                return true;
             };
             $startTime = time();
             for ($i = 0; $i < 10000; $i++) {
