@@ -234,22 +234,32 @@ class Tasks
                                 $app->hooks->execute('taskRun', $definitionIDCopy, $taskIDCopy, $handlerData);
                             }
                             if (isset($this->definitions[$definitionID])) {
-                                call_user_func($this->definitions[$definitionID], $taskData[2]);
+                                try {
+                                    call_user_func($this->definitions[$definitionID], $taskData[2]);
+                                } catch (\Exception $e) {
+                                    throw new \Exception('Cannot process task ' . $taskID . ' (list: ' . $listID . '). Reason: ' . $e->getMessage());
+                                }
                                 if (!$isInternalTask && $app->hooks->exists('taskRunDone')) {
                                     $definitionIDCopy = $definitionID;
                                     $taskIDCopy = $taskID;
                                     $handlerDataCopy = is_object($handlerData) ? clone($handlerData) : $handlerData;
                                     $app->hooks->execute('taskRunDone', $definitionIDCopy, $taskIDCopy, $handlerDataCopy);
                                 }
+                            } else {
+                                throw new \Exception('Cannot process task ' . $taskID . ' (list: ' . $listID . '). Reason: definition not found (' . $definitionID . ')!');
                             }
+                        } else {
+                            throw new \Exception('Cannot process task ' . $taskID . ' (list: ' . $listID . '). Reason: corrupted task data!');
                         }
                         $this->delete($taskID, $listID);
+                    } else {
+                        throw new \Exception('Cannot process task ' . $taskID . ' (list: ' . $listID . '). Reason: corrupted task data!');
                     }
                     if (time() - $currentTime >= $maxExecutionTime) {
                         return false;
                     }
                 }
-                return true;
+                return false;
             };
             $startTime = time();
             for ($i = 0; $i < 10000; $i++) {
