@@ -181,7 +181,10 @@ class Tasks
     /**
      * Run the tasks.
      * 
-     * @param array $options Available values: listID - the ID of the list whose tasks to run, maxExecutionTime - max time in seconds to run tasks (default is 30).
+     * @param array $options Available values:
+     *      listID - the ID of the list whose tasks to run
+     *      maxExecutionTime - max time in seconds to run tasks (default is 30)
+     *      retryTime - time in seconds when a failed task will be run again (default is 1 hour)
      * @return \BearFramework\Tasks Returns an instance to itself.
      * @throws \Exception
      */
@@ -189,6 +192,7 @@ class Tasks
     {
         $app = App::get();
         $listID = isset($options['listID']) ? (string) $options['listID'] : '';
+        $retryTime = isset($options['retryTime']) ? (string) $options['retryTime'] : 3600;
         $lockKey = 'tasks-run-' . md5($listID);
         if ($app->locks->exists($lockKey)) {
             return $this;
@@ -196,7 +200,7 @@ class Tasks
         $app->locks->acquire($lockKey);
         $maxExecutionTime = isset($options['maxExecutionTime']) ? (int) $options['maxExecutionTime'] : 30;
         try {
-            $run = function($maxExecutionTime) use ($app, $listID) {
+            $run = function($maxExecutionTime) use ($app, $listID, $retryTime) {
                 $list = $this->getListData($listID);
                 if (empty($list)) {
                     return true;
@@ -221,10 +225,12 @@ class Tasks
                     return true;
                 }
                 foreach ($sortedList as $taskID) {
+                    $retryTaskLater = false;
+                    $exceptionToThrow = null;
                     $taskData = $app->data->getValue($this->getTaskDataKey($taskID, $listID));
                     $taskData = $taskData === null ? [] : json_decode(gzuncompress($taskData), true);
                     if (isset($taskData[0])) {
-                        if ($taskData[0] === 1) {
+                        if ($taskData[0] === 1) { // format version
                             $definitionID = $taskData[1];
                             $handlerData = $taskData[2];
                             $isInternalTask = $definitionID === '--internal-add-multiple-task-definition';
@@ -237,23 +243,41 @@ class Tasks
                                 try {
                                     call_user_func($this->definitions[$definitionID], $taskData[2]);
                                 } catch (\Exception $e) {
-                                    throw new \Exception('Cannot process task ' . $taskID . ' (list: ' . $listID . '). Reason: ' . $e->getMessage());
+                                    $exceptionToThrow = new \Exception('Cannot process task ' . $taskID . ' (list: ' . $listID . '). Reason: ' . $e->getMessage(), 0, $e);
                                 }
-                                if (!$isInternalTask && $app->hooks->exists('taskRunDone')) {
+                                if ($exceptionToThrow === null && !$isInternalTask && $app->hooks->exists('taskRunDone')) {
                                     $definitionIDCopy = $definitionID;
                                     $taskIDCopy = $taskID;
                                     $handlerDataCopy = is_object($handlerData) ? clone($handlerData) : $handlerData;
                                     $app->hooks->execute('taskRunDone', $definitionIDCopy, $taskIDCopy, $handlerDataCopy);
                                 }
                             } else {
-                                throw new \Exception('Cannot process task ' . $taskID . ' (list: ' . $listID . '). Reason: definition not found (' . $definitionID . ')!');
+                                $exceptionToThrow = new \Exception('Cannot process task ' . $taskID . ' (list: ' . $listID . '). Reason: definition not found (' . $definitionID . ')!');
+                            }
+                            if ($exceptionToThrow !== null) {
+                                $retryTaskLater = true;
                             }
                         } else {
-                            throw new \Exception('Cannot process task ' . $taskID . ' (list: ' . $listID . '). Reason: corrupted task data!');
+                            $exceptionToThrow = new \Exception('Cannot process task ' . $taskID . ' (list: ' . $listID . '). Reason: corrupted task data!');
                         }
-                        $this->delete($taskID, $listID);
                     } else {
-                        throw new \Exception('Cannot process task ' . $taskID . ' (list: ' . $listID . '). Reason: corrupted task data!');
+                        $exceptionToThrow = new \Exception('Cannot process task ' . $taskID . ' (list: ' . $listID . '). Reason: corrupted task data!');
+                    }
+                    if ($retryTaskLater) {
+                        $this->lockList($listID);
+                        $list = $this->getListData($listID);
+                        if (isset($list[$taskID])) {
+                            $list[$taskID] = [1, time() + $retryTime]; // format version, start time
+                            $this->setListData($listID, $list);
+                        } else {
+                            new \Exception('Cannot schedule retry for task ' . $taskID . ' (list: ' . $listID . ')!');
+                        }
+                        $this->unlockList($listID);
+                    } else {
+                        $this->delete($taskID, $listID);
+                    }
+                    if ($exceptionToThrow !== null) {
+                        throw $exceptionToThrow;
                     }
                     if (time() - $currentTime >= $maxExecutionTime) {
                         return false;

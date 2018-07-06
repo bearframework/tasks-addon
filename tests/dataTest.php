@@ -338,4 +338,40 @@ class DataTest extends BearFrameworkAddonTestCase
         $this->assertTrue($stats['nextTaskStartTime'] === $currentTime - 5);
     }
 
+    /**
+     * 
+     */
+    public function testExceptionsInTasks()
+    {
+        $app = $this->getApp();
+
+        $runsCount = 0;
+        $app->tasks->define('sum', function() use (&$runsCount) {
+            $runsCount++;
+            if ($runsCount === 1) {
+                throw new \Exception('Custom error 1!');
+            }
+        });
+
+        $app->tasks->add('sum', []);
+        $this->assertTrue($app->tasks->getStats()['upcomingTasksCount'] === 1);
+
+        $exceptionMessage = '';
+        try {
+            $app->tasks->run([
+                'retryTime' => 3
+            ]);
+        } catch (\Exception $e) {
+            $exceptionMessage = $e->getMessage();
+        }
+        $this->assertTrue(strpos($exceptionMessage, 'Custom error 1') !== false);
+        $stats = $app->tasks->getStats();
+        $this->assertTrue($app->tasks->getStats()['upcomingTasksCount'] === 1);
+        sleep(5);
+        $app->tasks->run();
+        $this->assertTrue($runsCount === 2);
+        $stats = $app->tasks->getStats();
+        $this->assertTrue($app->tasks->getStats()['upcomingTasksCount'] === 0);
+    }
+
 }
