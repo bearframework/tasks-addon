@@ -3,7 +3,7 @@
 /*
  * Tasks addon for Bear Framework
  * https://github.com/bearframework/tasks-addon
- * Copyright (c) 2017 Ivo Petkov
+ * Copyright (c) Ivo Petkov
  * Free to use under the MIT license.
  */
 
