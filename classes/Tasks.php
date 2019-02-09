@@ -17,6 +17,8 @@ use BearFramework\App;
 class Tasks
 {
 
+    use \BearFramework\App\EventsTrait;
+
     /**
      *
      * @var array 
@@ -87,7 +89,7 @@ class Tasks
         ];
         $app->data->setValue($this->getTaskDataKey($taskID, $listID), gzcompress(json_encode($taskData)));
         $this->unlockList($listID);
-        $app->hooks->execute('taskAdded');
+        $this->dispatchEvent('addTask');
         return $this;
     }
 
@@ -234,10 +236,9 @@ class Tasks
                             $definitionID = $taskData[1];
                             $handlerData = $taskData[2];
                             $isInternalTask = $definitionID === '--internal-add-multiple-task-definition';
-                            if (!$isInternalTask && $app->hooks->exists('taskRun')) {
-                                $definitionIDCopy = $definitionID;
-                                $taskIDCopy = $taskID;
-                                $app->hooks->execute('taskRun', $definitionIDCopy, $taskIDCopy, $handlerData);
+                            if (!$isInternalTask && $this->hasEventListeners('beforeRunTask')) {
+                                $eventDetails = new \BearFramework\Tasks\BeforeRunTaskEventDetails($definitionID, $taskID, $handlerData);
+                                $this->dispatchEvent('beforeRunTask', $eventDetails);
                             }
                             if (isset($this->definitions[$definitionID])) {
                                 try {
@@ -245,11 +246,9 @@ class Tasks
                                 } catch (\Exception $e) {
                                     $exceptionToThrow = new \Exception('Cannot process task ' . $taskID . ' (list: ' . $listID . '). Reason: ' . $e->getMessage(), 0, $e);
                                 }
-                                if ($exceptionToThrow === null && !$isInternalTask && $app->hooks->exists('taskRunDone')) {
-                                    $definitionIDCopy = $definitionID;
-                                    $taskIDCopy = $taskID;
-                                    $handlerDataCopy = is_object($handlerData) ? clone($handlerData) : $handlerData;
-                                    $app->hooks->execute('taskRunDone', $definitionIDCopy, $taskIDCopy, $handlerDataCopy);
+                                if ($exceptionToThrow === null && !$isInternalTask && $this->hasEventListeners('runTask')) {
+                                    $eventDetails = new \BearFramework\Tasks\RunTaskEventDetails($definitionID, $taskID, is_object($handlerData) ? clone($handlerData) : $handlerData);
+                                    $this->dispatchEvent('runTask', $eventDetails);
                                 }
                             } else {
                                 $exceptionToThrow = new \Exception('Cannot process task ' . $taskID . ' (list: ' . $listID . '). Reason: definition not found (' . $definitionID . ')!');

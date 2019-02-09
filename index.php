@@ -10,10 +10,11 @@
 use BearFramework\App;
 
 $app = App::get();
-$context = $app->context->get(__FILE__);
+$context = $app->contexts->get(__FILE__);
 
 $context->classes
-        ->add('BearFramework\Tasks', 'classes/Tasks.php');
+        ->add('BearFramework\Tasks', 'classes/Tasks.php')
+        ->add('BearFramework\Tasks\*', 'classes/Tasks/*.php');
 
 $app->shortcuts
         ->add('tasks', function() {

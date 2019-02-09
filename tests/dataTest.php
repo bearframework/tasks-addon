@@ -290,7 +290,7 @@ class DataTest extends BearFramework\AddonTests\PHPUnitTestCase
     /**
      * 
      */
-    public function testHooks()
+    public function testEvents()
     {
         $app = $this->getApp();
         $results = [];
@@ -298,24 +298,24 @@ class DataTest extends BearFramework\AddonTests\PHPUnitTestCase
             $results[] = $data['a'] + $data['b'];
         });
 
-        $hooksLog = [];
-        $app->hooks->add('taskRun', function($definitionID, $taskID, $data) use (&$hooksLog) {
-            $hooksLog[] = ['taskRun', $definitionID, $taskID, $data];
+        $eventsLog = [];
+        $app->tasks->addEventListener('beforeRunTask', function(\BearFramework\Tasks\BeforeRunTaskEventDetails $details) use (&$eventsLog) {
+            $eventsLog[] = ['beforeRunTask', $details->definitionID, $details->taskID, $details->data];
         });
 
-        $app->hooks->add('taskRunDone', function($definitionID, $taskID, $data) use (&$hooksLog) {
-            $hooksLog[] = ['taskRunDone', $definitionID, $taskID, $data];
+        $app->tasks->addEventListener('runTask', function(\BearFramework\Tasks\RunTaskEventDetails $details) use (&$eventsLog) {
+            $eventsLog[] = ['runTask', $details->definitionID, $details->taskID, $details->data];
         });
 
         $app->tasks->add('sum', ['a' => 1, 'b' => 2], ['id' => 'sum1']);
         $app->tasks->add('sum', ['a' => 2, 'b' => 3], ['id' => 'sum2']);
         $app->tasks->run();
 
-        $this->assertTrue(sizeof($hooksLog) === 4);
-        $this->assertTrue($hooksLog[0] === ['taskRun', 'sum', 'sum1', ['a' => 1, 'b' => 2]]);
-        $this->assertTrue($hooksLog[1] === ['taskRunDone', 'sum', 'sum1', ['a' => 1, 'b' => 2]]);
-        $this->assertTrue($hooksLog[2] === ['taskRun', 'sum', 'sum2', ['a' => 2, 'b' => 3]]);
-        $this->assertTrue($hooksLog[3] === ['taskRunDone', 'sum', 'sum2', ['a' => 2, 'b' => 3]]);
+        $this->assertTrue(sizeof($eventsLog) === 4);
+        $this->assertTrue($eventsLog[0] === ['beforeRunTask', 'sum', 'sum1', ['a' => 1, 'b' => 2]]);
+        $this->assertTrue($eventsLog[1] === ['runTask', 'sum', 'sum1', ['a' => 1, 'b' => 2]]);
+        $this->assertTrue($eventsLog[2] === ['beforeRunTask', 'sum', 'sum2', ['a' => 2, 'b' => 3]]);
+        $this->assertTrue($eventsLog[3] === ['runTask', 'sum', 'sum2', ['a' => 2, 'b' => 3]]);
     }
 
     /**
