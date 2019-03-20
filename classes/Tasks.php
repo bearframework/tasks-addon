@@ -17,7 +17,7 @@ use BearFramework\App;
 class Tasks
 {
 
-    use \BearFramework\App\EventsTrait;
+    use \BearFramework\EventsTrait;
 
     /**
      *
