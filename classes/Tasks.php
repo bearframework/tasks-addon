@@ -155,8 +155,12 @@ class Tasks
      */
     public function exists(string $taskID, string $listID = ''): bool
     {
-        $app = App::get();
-        return $app->data->exists($this->getTaskDataKey($taskID, $listID));
+        $list = $this->getListData($listID);
+        if (isset($list[$taskID])) {
+            $app = App::get();
+            return $app->data->exists($this->getTaskDataKey($taskID, $listID));
+        }
+        return false;
     }
 
     /**
