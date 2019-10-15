@@ -30,7 +30,7 @@ class Tasks
      */
     public function __construct()
     {
-        $this->define('--internal-add-multiple-task-definition', function($tasks) {
+        $this->define('--internal-add-multiple-task-definition', function ($tasks) {
             $counter = 0;
             foreach ($tasks as $index => $task) {
                 $this->add($task['definitionID'], isset($task['data']) ? $task['data'] : null, isset($task['options']) ? $task['options'] : []);
@@ -172,13 +172,34 @@ class Tasks
      */
     public function delete(string $taskID, string $listID = ''): \BearFramework\Tasks
     {
+        $this->deleteMultiple([$taskID], $listID);
+        return $this;
+    }
+
+    /**
+     * Deletes multiple task.
+     * 
+     * @param string $taskIDs The IDs of the tasks to delete.
+     * @param string $listID The ID of the tasks lists.
+     * @return \BearFramework\Tasks Returns an instance to itself.
+     */
+    public function deleteMultiple(array $taskIDs, string $listID = ''): \BearFramework\Tasks
+    {
         $app = App::get();
         $this->lockList($listID);
         $list = $this->getListData($listID);
-        if (isset($list[$taskID])) {
-            unset($list[$taskID]);
+        $dataKeysToDelete = [];
+        foreach ($taskIDs as $taskID) {
+            if (isset($list[$taskID])) {
+                unset($list[$taskID]);
+                $dataKeysToDelete[] = $this->getTaskDataKey($taskID, $listID);
+            }
+        }
+        if (!empty($dataKeysToDelete)) {
             $this->setListData($listID, $list);
-            $app->data->delete($this->getTaskDataKey($taskID, $listID));
+            foreach ($dataKeysToDelete as $dataKeyToDelete) {
+                $app->data->delete($dataKeyToDelete);
+            }
         }
         $this->unlockList($listID);
         return $this;
@@ -206,7 +227,7 @@ class Tasks
         $app->locks->acquire($lockKey);
         $maxExecutionTime = isset($options['maxExecutionTime']) ? (int) $options['maxExecutionTime'] : 30;
         try {
-            $run = function($maxExecutionTime) use ($app, $listID, $retryTime) {
+            $run = function ($maxExecutionTime) use ($app, $listID, $retryTime) {
                 $list = $this->getListData($listID);
                 if (empty($list)) {
                     return true;
@@ -251,7 +272,7 @@ class Tasks
                                     $exceptionToThrow = new \Exception('Cannot process task ' . $taskID . ' (list: ' . $listID . '). Reason: ' . $e->getMessage(), 0, $e);
                                 }
                                 if ($exceptionToThrow === null && !$isInternalTask && $this->hasEventListeners('runTask')) {
-                                    $eventDetails = new \BearFramework\Tasks\RunTaskEventDetails($definitionID, $taskID, is_object($handlerData) ? clone($handlerData) : $handlerData);
+                                    $eventDetails = new \BearFramework\Tasks\RunTaskEventDetails($definitionID, $taskID, is_object($handlerData) ? clone ($handlerData) : $handlerData);
                                     $this->dispatchEvent('runTask', $eventDetails);
                                 }
                             } else {
@@ -358,7 +379,7 @@ class Tasks
         $currentTime = time();
         $list = $this->getListData($listID);
         foreach ($list as $taskID => $taskListData) {
-            $result['upcomingTasksCount'] ++;
+            $result['upcomingTasksCount']++;
             if ($taskListData[0] === 1) { // version check
                 $startTime = $taskListData[1];
                 $result['upcomingTasks'][] = ['id' => $taskID, 'startTime' => $startTime];
@@ -446,5 +467,4 @@ class Tasks
         $app = App::get();
         $app->locks->release('tasks-update-' . md5($listID));
     }
-
 }
