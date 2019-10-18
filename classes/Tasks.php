@@ -64,7 +64,11 @@ class Tasks
      * 
      * @param string $definitionID The ID of the definition.
      * @param mixed $data A task data that will be passed to the handler.
-     * @param array $options Available options: id - the ID of the task, listID - the ID of the tasks list, startTime - the earliest time to start the task
+     * @param array $options Available options:
+     *      id - the ID of the task
+     *      listID - the ID of the tasks list
+     *      startTime - the earliest time to start the task
+     *      priority - The task priority (1 - highest, 5 - lowest, 3 - default)
      * @return \BearFramework\Tasks Returns an instance to itself.
      * @throws \Exception
      */
@@ -74,13 +78,17 @@ class Tasks
         $taskID = isset($options['id']) ? (string) $options['id'] : uniqid();
         $listID = isset($options['listID']) ? (string) $options['listID'] : '';
         $startTime = isset($options['startTime']) ? (int) $options['startTime'] : null;
+        $priority = isset($options['priority']) ? (int) $options['priority'] : 3;
+        if ($priority < 1 || $priority > 5) {
+            $priority = 3;
+        }
         $this->lockList($listID);
         $list = $this->getListData($listID);
         if (isset($list[$taskID])) {
             $this->unlockList($listID);
             throw new \Exception('A task with the id "' . $taskID . '" already exists in list named \'' . $listID . '\'!');
         }
-        $list[$taskID] = [1, $startTime]; // format version, start time
+        $list[$taskID] = [2, $startTime, $priority]; // format version, start time, priority
         $this->setListData($listID, $list);
         $taskData = [
             1, // format version
@@ -112,6 +120,7 @@ class Tasks
             }
             $listID = '';
             $startTime = null;
+            $priority = 3;
             if (isset($task['options'])) {
                 if (is_array($task['options'])) {
                     if (isset($task['options']['listID'])) {
@@ -120,6 +129,12 @@ class Tasks
                     if (isset($task['options']['startTime'])) {
                         $startTime = (int) $task['options']['startTime'];
                     }
+                    if (isset($task['options']['priority'])) {
+                        $priority = (int) $task['options']['priority'];
+                        if ($priority < 1 || $priority > 5) {
+                            $priority = 3;
+                        }
+                    }
                 } else {
                     throw new \Exception('The \'options\' key must be of type array for index ' . $index);
                 }
@@ -127,11 +142,15 @@ class Tasks
             if (!isset($taskLists[$listID])) {
                 $taskLists[$listID] = [
                     'minStartTime' => null,
+                    'priority' => 3,
                     'data' => []
                 ];
             }
             if ($startTime !== null && ($taskLists[$listID]['minStartTime'] === null || $startTime < $taskLists[$listID]['minStartTime'])) {
                 $taskLists[$listID]['minStartTime'] = $startTime;
+            }
+            if ($priority < $taskLists[$listID]['priority']) {
+                $taskLists[$listID]['priority'] = $priority;
             }
             $taskLists[$listID]['data'][] = $task;
         }
@@ -141,6 +160,7 @@ class Tasks
             if ($taskListData['minStartTime'] !== null) {
                 $options['startTime'] = $taskListData['minStartTime'];
             }
+            $options['priority'] = $taskListData['priority'];
             $this->add('--internal-add-multiple-task-definition', $taskListData['data'], $options);
         }
         return $this;
@@ -232,22 +252,34 @@ class Tasks
                 if (empty($list)) {
                     return true;
                 }
-                $list1 = []; // with specified start time
-                $list2 = []; // without specified start time
+                $tempList = [];
                 $currentTime = time();
                 foreach ($list as $taskID => $taskListData) {
                     if ($taskListData[0] === 1) { // version check
+                        $taskListData[0] = 2; // set to version 2
+                        $taskListData[2] = 3; // set default value for the priority
+                    }
+                    if ($taskListData[0] === 2) { // version check
                         if ($taskListData[1] === null) { // does not have start time
-                            $list2[$taskID] = null;
+                            $tempList[$taskID] = [$taskListData[2], $currentTime];
                         } else {
                             if ($taskListData[1] <= $currentTime) { // has start time and it is lower than the current time
-                                $list1[$taskID] = $taskListData[1];
+                                $tempList[$taskID] = [$taskListData[2], $taskListData[1]];
                             }
                         }
                     }
                 }
-                asort($list1);
-                $sortedList = array_merge(array_keys($list1), array_keys($list2));
+                uasort($tempList, function ($a, $b) {
+                    if ($a[0] !== $b[0]) {
+                        return $a[0] < $b[0] ? -1 : 1;
+                    }
+                    if ($a[1] !== $b[1]) {
+                        return $a[1] < $b[1] ? -1 : 1;
+                    }
+                    return 0;
+                });
+                $sortedList = array_keys($tempList);
+                unset($tempList);
                 if (empty($sortedList)) {
                     return true;
                 }
@@ -342,7 +374,7 @@ class Tasks
         $minStartTime = null;
         $hasTaskWithoutStartDate = false;
         foreach ($list as $taskListData) {
-            if ($taskListData[0] === 1) { // version check
+            if ($taskListData[0] === 1 || $taskListData[0] === 2) { // version check
                 if ($taskListData[1] === null) { // does not have start time
                     $hasTaskWithoutStartDate = true;
                 } else { // has start time
@@ -380,9 +412,9 @@ class Tasks
         $list = $this->getListData($listID);
         foreach ($list as $taskID => $taskListData) {
             $result['upcomingTasksCount']++;
-            if ($taskListData[0] === 1) { // version check
+            if ($taskListData[0] === 1 || $taskListData[0] === 2) { // version check
                 $startTime = $taskListData[1];
-                $result['upcomingTasks'][] = ['id' => $taskID, 'startTime' => $startTime];
+                $result['upcomingTasks'][] = ['id' => $taskID, 'startTime' => $startTime, 'priority' => ($taskListData[0] === 2 ? $taskListData[2] : 3)];
                 $tempStartTime = $startTime === null ? $currentTime : $startTime;
                 if ($result['nextTaskStartTime'] === null || $result['nextTaskStartTime'] > $tempStartTime) {
                     $result['nextTaskStartTime'] = $tempStartTime;

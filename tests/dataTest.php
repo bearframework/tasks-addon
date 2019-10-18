@@ -20,7 +20,7 @@ class DataTest extends BearFramework\AddonTests\PHPUnitTestCase
     {
         $app = $this->getApp();
         $results = [];
-        $app->tasks->define('sum', function($data) use (&$results) {
+        $app->tasks->define('sum', function ($data) use (&$results) {
             $results[] = $data['a'] + $data['b'];
         });
 
@@ -40,7 +40,7 @@ class DataTest extends BearFramework\AddonTests\PHPUnitTestCase
     {
         $app = $this->getApp();
         $results = [];
-        $app->tasks->define('sum', function($data) use (&$results) {
+        $app->tasks->define('sum', function ($data) use (&$results) {
             $results[] = $data['a'] + $data['b'];
         });
 
@@ -97,7 +97,7 @@ class DataTest extends BearFramework\AddonTests\PHPUnitTestCase
     {
         $app = $this->getApp();
         $results = [];
-        $app->tasks->define('sum', function($data) use (&$results) {
+        $app->tasks->define('sum', function ($data) use (&$results) {
             $results[] = $data['a'] + $data['b'];
             sleep(2);
         });
@@ -132,12 +132,12 @@ class DataTest extends BearFramework\AddonTests\PHPUnitTestCase
     {
         $app = $this->getApp();
         $results = [];
-        $app->tasks->define('add-sums', function($data) use (&$results, $app) {
+        $app->tasks->define('add-sums', function ($data) use (&$results, $app) {
             $results[] = 'add sums done';
             $app->tasks->add('sum', ['a' => 1, 'b' => 2]);
             $app->tasks->add('sum', ['a' => 2, 'b' => 3]);
         });
-        $app->tasks->define('sum', function($data) use (&$results) {
+        $app->tasks->define('sum', function ($data) use (&$results) {
             $results[] = $data['a'] + $data['b'];
         });
 
@@ -157,7 +157,7 @@ class DataTest extends BearFramework\AddonTests\PHPUnitTestCase
     {
         $app = $this->getApp();
         $results = [];
-        $app->tasks->define('sum', function($data) use (&$results) {
+        $app->tasks->define('sum', function ($data) use (&$results) {
             $results[$data['index']] = $data['a'] + $data['b'];
         });
 
@@ -191,7 +191,7 @@ class DataTest extends BearFramework\AddonTests\PHPUnitTestCase
     {
         $app = $this->getApp();
         $results = [];
-        $app->tasks->define('sum', function($data) use (&$results) {
+        $app->tasks->define('sum', function ($data) use (&$results) {
             $results[] = $data['a'] + $data['b'];
         });
 
@@ -228,7 +228,7 @@ class DataTest extends BearFramework\AddonTests\PHPUnitTestCase
     {
         $app = $this->getApp();
         $results = [];
-        $app->tasks->define('sum', function($data) use (&$results) {
+        $app->tasks->define('sum', function ($data) use (&$results) {
             $results[$data['index']] = $data['listID'] . ' -> ' . ($data['a'] + $data['b']);
         });
 
@@ -272,7 +272,7 @@ class DataTest extends BearFramework\AddonTests\PHPUnitTestCase
     {
         $app = $this->getApp();
         $results = [];
-        $app->tasks->define('sum', function($data) use (&$results) {
+        $app->tasks->define('sum', function ($data) use (&$results) {
             $results[] = gettype($data);
         });
 
@@ -294,16 +294,16 @@ class DataTest extends BearFramework\AddonTests\PHPUnitTestCase
     {
         $app = $this->getApp();
         $results = [];
-        $app->tasks->define('sum', function($data) use (&$results) {
+        $app->tasks->define('sum', function ($data) use (&$results) {
             $results[] = $data['a'] + $data['b'];
         });
 
         $eventsLog = [];
-        $app->tasks->addEventListener('beforeRunTask', function(\BearFramework\Tasks\BeforeRunTaskEventDetails $details) use (&$eventsLog) {
+        $app->tasks->addEventListener('beforeRunTask', function (\BearFramework\Tasks\BeforeRunTaskEventDetails $details) use (&$eventsLog) {
             $eventsLog[] = ['beforeRunTask', $details->definitionID, $details->taskID, $details->data];
         });
 
-        $app->tasks->addEventListener('runTask', function(\BearFramework\Tasks\RunTaskEventDetails $details) use (&$eventsLog) {
+        $app->tasks->addEventListener('runTask', function (\BearFramework\Tasks\RunTaskEventDetails $details) use (&$eventsLog) {
             $eventsLog[] = ['runTask', $details->definitionID, $details->taskID, $details->data];
         });
 
@@ -324,9 +324,7 @@ class DataTest extends BearFramework\AddonTests\PHPUnitTestCase
     public function testGetStats()
     {
         $app = $this->getApp();
-        $app->tasks->define('sum', function($data) {
-            
-        });
+        $app->tasks->define('sum', function ($data) { });
 
         $currentTime = time();
         $app->tasks->add('sum', ['a' => 1, 'b' => 2], ['startTime' => $currentTime - 5]);
@@ -346,7 +344,7 @@ class DataTest extends BearFramework\AddonTests\PHPUnitTestCase
         $app = $this->getApp();
 
         $runsCount = 0;
-        $app->tasks->define('sum', function() use (&$runsCount) {
+        $app->tasks->define('sum', function () use (&$runsCount) {
             $runsCount++;
             if ($runsCount === 1) {
                 throw new \Exception('Custom error 1!');
@@ -374,4 +372,29 @@ class DataTest extends BearFramework\AddonTests\PHPUnitTestCase
         $this->assertTrue($app->tasks->getStats()['upcomingTasksCount'] === 0);
     }
 
+    /**
+     * 
+     */
+    public function testPriority()
+    {
+        $app = $this->getApp();
+        $results = [];
+        $app->tasks->define('priority-test', function ($data) use (&$results) {
+            $results[] = $data['id'];
+        });
+
+        $currentTime = time();
+        $app->tasks->add('priority-test', ['id' => 'id1'], ['priority' => 5, 'startTime' => ($currentTime - 6)]);
+        $app->tasks->add('priority-test', ['id' => 'id2'], ['startTime' => ($currentTime - 4)]);
+        $app->tasks->add('priority-test', ['id' => 'id3'], ['priority' => 1, 'startTime' => ($currentTime - 4)]);
+        $app->tasks->add('priority-test', ['id' => 'id4'], ['priority' => 1, 'startTime' => ($currentTime - 6)]);
+        $app->tasks->add('priority-test', ['id' => 'id5'], ['priority' => 3, 'startTime' => ($currentTime - 8)]);
+        $app->tasks->add('priority-test', ['id' => 'id6'], ['priority' => 3, 'startTime' => ($currentTime + 8)]);
+        $app->tasks->run();
+        $this->assertTrue($results[0] === 'id4');
+        $this->assertTrue($results[1] === 'id3');
+        $this->assertTrue($results[2] === 'id5');
+        $this->assertTrue($results[3] === 'id2');
+        $this->assertTrue($results[4] === 'id1');
+    }
 }
