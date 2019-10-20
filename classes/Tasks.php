@@ -91,9 +91,10 @@ class Tasks
         $list[$taskID] = [2, $startTime, $priority]; // format version, start time, priority
         $this->setListData($listID, $list);
         $taskData = [
-            1, // format version
+            2, // format version
             $definitionID,
-            $data
+            $data,
+            $priority
         ];
         $app->data->setValue($this->getTaskDataKey($taskID, $listID), gzcompress(json_encode($taskData)));
         $this->unlockList($listID);
@@ -288,10 +289,14 @@ class Tasks
                     $exceptionToThrow = null;
                     $taskData = $app->data->getValue($this->getTaskDataKey($taskID, $listID));
                     $taskData = $taskData === null ? [] : json_decode(gzuncompress($taskData), true);
+                    $priority = 3;
                     if (isset($taskData[0])) {
-                        if ($taskData[0] === 1) { // format version
+                        if ($taskData[0] === 1 || $taskData[0] === 2) { // format version
                             $definitionID = $taskData[1];
                             $handlerData = $taskData[2];
+                            if ($taskData[0] === 2) {
+                                $priority = $taskData[3];
+                            }
                             $isInternalTask = $definitionID === '--internal-add-multiple-task-definition';
                             if (!$isInternalTask && $this->hasEventListeners('beforeRunTask')) {
                                 $eventDetails = new \BearFramework\Tasks\BeforeRunTaskEventDetails($definitionID, $taskID, $handlerData);
@@ -323,7 +328,7 @@ class Tasks
                         $this->lockList($listID);
                         $list = $this->getListData($listID);
                         if (isset($list[$taskID])) {
-                            $list[$taskID] = [1, time() + $retryTime]; // format version, start time
+                            $list[$taskID] = [2, time() + $retryTime, $priority]; // format version, start time, priority
                             $this->setListData($listID, $list);
                         } else {
                             new \Exception('Cannot schedule retry for task ' . $taskID . ' (list: ' . $listID . ')!');
@@ -406,7 +411,8 @@ class Tasks
         $result = [];
         $result['upcomingTasksCount'] = 0;
         $result['upcomingTasks'] = [];
-        $result['nextTaskStartTime'] = null;
+        $result['nextTask'] = null;
+        $result['nextTaskStartTime'] = null; //deprecated - remove in the future
 
         $currentTime = time();
         $list = $this->getListData($listID);
@@ -414,12 +420,16 @@ class Tasks
             $result['upcomingTasksCount']++;
             if ($taskListData[0] === 1 || $taskListData[0] === 2) { // version check
                 $startTime = $taskListData[1];
-                $result['upcomingTasks'][] = ['id' => $taskID, 'startTime' => $startTime, 'priority' => ($taskListData[0] === 2 ? $taskListData[2] : 3)];
+                $taskData = ['id' => $taskID, 'startTime' => $startTime, 'priority' => ($taskListData[0] === 2 ? $taskListData[2] : 3)];
+                $result['upcomingTasks'][] = $taskData;
                 $tempStartTime = $startTime === null ? $currentTime : $startTime;
-                if ($result['nextTaskStartTime'] === null || $result['nextTaskStartTime'] > $tempStartTime) {
-                    $result['nextTaskStartTime'] = $tempStartTime;
+                if ($result['nextTask'] === null || $result['nextTask']['startTime'] > $tempStartTime) {
+                    $result['nextTask'] = $taskData;
                 }
             }
+        }
+        if ($result['nextTask'] !== null) {
+            $result['nextTaskStartTime'] = $result['nextTask']['startTime'];
         }
 
         return $result;
