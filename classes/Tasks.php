@@ -415,22 +415,42 @@ class Tasks
         $result['nextTaskStartTime'] = null; //deprecated - remove in the future
 
         $currentTime = time();
+        $tempList = [];
         $list = $this->getListData($listID);
         foreach ($list as $taskID => $taskListData) {
             $result['upcomingTasksCount']++;
             if ($taskListData[0] === 1 || $taskListData[0] === 2) { // version check
                 $startTime = $taskListData[1];
-                $taskData = ['id' => $taskID, 'startTime' => $startTime, 'priority' => ($taskListData[0] === 2 ? $taskListData[2] : 3)];
-                $result['upcomingTasks'][] = $taskData;
-                $tempStartTime = $startTime === null ? $currentTime : $startTime;
-                if ($result['nextTask'] === null || $result['nextTask']['startTime'] > $tempStartTime) {
-                    $result['nextTask'] = $taskData;
+                $priority = $taskListData[0] === 2 ? $taskListData[2] : 3;
+                $taskData = ['id' => $taskID, 'startTime' => $startTime, 'priority' => $priority];
+                $result['upcomingTasks'][$taskID] = $taskData;
+                if ($startTime === null) {
+                    $startTime = $currentTime;
                 }
+                $tempList[$taskID] = [$priority, $startTime];
             }
         }
-        if ($result['nextTask'] !== null) {
-            $result['nextTaskStartTime'] = $result['nextTask']['startTime'];
+        uasort($tempList, function ($a, $b) use ($currentTime) {
+            if ($a[1] > $currentTime && $b[1] <= $currentTime) {
+                return 1;
+            }
+            if ($a[1] <= $currentTime && $b[1] > $currentTime) {
+                return -1;
+            }
+            if ($a[0] !== $b[0]) {
+                return $a[0] < $b[0] ? -1 : 1;
+            }
+            if ($a[1] !== $b[1]) {
+                return $a[1] < $b[1] ? -1 : 1;
+            }
+            return 0;
+        });
+        $nextTaskID = key($tempList);
+        if ($nextTaskID !== null) {
+            $result['nextTask'] = $result['upcomingTasks'][$nextTaskID];
+            $result['nextTaskStartTime'] = $result['nextTask']['startTime']; // backwards compatibility
         }
+        $result['upcomingTasks'] = array_values($result['upcomingTasks']);
 
         return $result;
     }
