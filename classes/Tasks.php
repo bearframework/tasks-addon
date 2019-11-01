@@ -68,7 +68,8 @@ class Tasks
      *      id - the ID of the task
      *      listID - the ID of the tasks list
      *      startTime - the earliest time to start the task
-     *      priority - The task priority (1 - highest, 5 - lowest, 3 - default)
+     *      priority - the task priority (1 - highest, 5 - lowest, 3 - default)
+     *      ignoreIfExists - dont throw exception if task exists (default is false)
      * @return \BearFramework\Tasks Returns an instance to itself.
      * @throws \Exception
      */
@@ -79,6 +80,7 @@ class Tasks
         $listID = isset($options['listID']) ? (string) $options['listID'] : '';
         $startTime = isset($options['startTime']) ? (int) $options['startTime'] : null;
         $priority = isset($options['priority']) ? (int) $options['priority'] : 3;
+        $ignoreIfExists = isset($options['ignoreIfExists']) ? (int) $options['ignoreIfExists'] : false;
         if ($priority < 1 || $priority > 5) {
             $priority = 3;
         }
@@ -86,6 +88,9 @@ class Tasks
         $list = $this->getListData($listID);
         if (isset($list[$taskID])) {
             $this->unlockList($listID);
+            if ($ignoreIfExists) {
+                return $this;
+            }
             throw new \Exception('A task with the id "' . $taskID . '" already exists in list named \'' . $listID . '\'!');
         }
         $list[$taskID] = [2, $startTime, $priority]; // format version, start time, priority
