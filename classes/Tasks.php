@@ -80,7 +80,7 @@ class Tasks
         $listID = isset($options['listID']) ? (string) $options['listID'] : '';
         $startTime = isset($options['startTime']) ? (int) $options['startTime'] : null;
         $priority = isset($options['priority']) ? (int) $options['priority'] : 3;
-        $ignoreIfExists = isset($options['ignoreIfExists']) ? (int) $options['ignoreIfExists'] : false;
+        $ignoreIfExists = isset($options['ignoreIfExists']) ? (int) $options['ignoreIfExists'] > 0 : false;
         if ($priority < 1 || $priority > 5) {
             $priority = 3;
         }
@@ -117,6 +117,17 @@ class Tasks
     public function addMultiple(array $tasks): \BearFramework\Tasks
     {
         $taskLists = [];
+        $listsCache = [];
+        $addedTaskIDs = [];
+        $exists = function (string $taskID, string $listID) use (&$listsCache, &$addedTaskIDs) {
+            if (isset($addedTaskIDs[$listID], $addedTaskIDs[$listID][$taskID])) {
+                return true;
+            }
+            if (!isset($listsCache[$listID])) {
+                $listsCache[$listID] = $this->getListData($listID);
+            }
+            return isset($listsCache[$listID][$taskID]);
+        };
         foreach ($tasks as $index => $task) {
             if (!isset($task['definitionID'])) {
                 throw new \Exception('The definitionID key is missing for task with index ' . $index);
@@ -141,6 +152,18 @@ class Tasks
                             $priority = 3;
                         }
                     }
+                    if (isset($task['options']['id'])) {
+                        $taskID = $task['options']['id'];
+                        if (isset($task['options']['ignoreIfExists']) && (int) $task['options']['ignoreIfExists'] > 0) {
+                            if ($exists($taskID, $listID)) {
+                                continue;
+                            }
+                        }
+                        if (!isset($addedTaskIDs[$listID])) {
+                            $addedTaskIDs[$listID] = [];
+                        }
+                        $addedTaskIDs[$listID][$taskID] = true;
+                    }
                 } else {
                     throw new \Exception('The \'options\' key must be of type array for index ' . $index);
                 }
@@ -160,6 +183,7 @@ class Tasks
             }
             $taskLists[$listID]['data'][] = $task;
         }
+
         foreach ($taskLists as $listID => $taskListData) {
             $options = [];
             $options['listID'] = $listID;

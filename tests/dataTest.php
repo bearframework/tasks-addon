@@ -153,6 +153,37 @@ class DataTest extends BearFramework\AddonTests\PHPUnitTestCase
     /**
      * 
      */
+    public function testIgnoreIfExists1()
+    {
+        $app = $this->getApp();
+        $app->tasks->define('do-something', function ($data) use ($app) { });
+
+        $app->tasks->add('do-something', null, ['id' => 'id1']);
+        $exceptionMessage = '';
+        try {
+            $app->tasks->add('do-something', null, ['id' => 'id1']);
+        } catch (\Exception $e) {
+            $exceptionMessage = $e->getMessage();
+        }
+        $this->assertTrue($exceptionMessage === 'A task with the id "id1" already exists in list named \'\'!');
+    }
+
+    /**
+     * 
+     */
+    public function testIgnoreIfExists2()
+    {
+        $app = $this->getApp();
+        $app->tasks->define('do-something', function ($data) use ($app) { });
+
+        $app->tasks->add('do-something', null, ['id' => 'id1']);
+        $app->tasks->add('do-something', null, ['id' => 'id1', 'ignoreIfExists' => true]); // no error expected
+        $this->assertTrue(true);
+    }
+
+    /**
+     * 
+     */
     public function testAddMultiple()
     {
         $app = $this->getApp();
@@ -182,6 +213,46 @@ class DataTest extends BearFramework\AddonTests\PHPUnitTestCase
         foreach ($expectedResults as $index => $expectedValue) {
             $this->assertTrue($results[$index] === $expectedValue);
         }
+    }
+
+    /**
+     * 
+     */
+    public function testAddMultipleWithIgnoreIfExists()
+    {
+        $app = $this->getApp();
+        $results = [];
+        $app->tasks->define('stats-test', function ($data) use (&$results) {
+            $results[] = $data['id'];
+        });
+
+        $app->tasks->add('stats-test', ['id' => 1], ['id' => 'idX']);
+
+        $data = [];
+        $data[] = [
+            'definitionID' => 'stats-test',
+            'data' => ['id' => 1],
+            'options' => ['id' => 'idX', 'ignoreIfExists' => true]
+        ];
+        $data[] = [
+            'definitionID' => 'stats-test',
+            'data' => ['id' => 2],
+            'options' => ['id' => 'idY', 'ignoreIfExists' => true]
+        ];
+        $data[] = [
+            'definitionID' => 'stats-test',
+            'data' => ['id' => 3],
+            'options' => ['id' => 'idY', 'ignoreIfExists' => true]
+        ];
+        $data[] = [
+            'definitionID' => 'stats-test',
+            'data' => ['id' => 4],
+            'options' => ['id' => 'id4', 'ignoreIfExists' => true]
+        ];
+        $app->tasks->addMultiple($data);
+        $app->tasks->run();
+
+        $this->assertTrue($results === [1, 2, 4]);
     }
 
     /**
