@@ -79,7 +79,7 @@ class Tasks
         $taskID = isset($options['id']) ? (string) $options['id'] : uniqid();
         $listID = isset($options['listID']) ? (string) $options['listID'] : '';
         $startTime = isset($options['startTime']) && strlen($options['startTime']) > 0 ? (int) $options['startTime'] : null;
-        $priority = isset($options['priority']) ? (int) $options['priority'] : 3;
+        $priority = isset($options['priority']) && strlen($options['priority']) > 0 ? (int) $options['priority'] : 3;
         $ignoreIfExists = isset($options['ignoreIfExists']) ? (int) $options['ignoreIfExists'] > 0 : false;
         if ($priority < 1 || $priority > 5) {
             $priority = 3;
