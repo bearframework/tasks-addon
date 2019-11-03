@@ -440,8 +440,9 @@ class Tasks
         $result = [];
         $result['upcomingTasksCount'] = 0;
         $result['upcomingTasks'] = [];
-        $result['nextTask'] = null;
+        $result['nextTask'] = null; //deprecated - remove in the future
         $result['nextTaskStartTime'] = null; //deprecated - remove in the future
+        $result['nextTasksByPriority'] = [];
 
         $currentTime = time();
         $tempList = [];
@@ -453,6 +454,9 @@ class Tasks
                 $priority = $taskListData[0] === 2 ? $taskListData[2] : 3;
                 $taskData = ['id' => $taskID, 'startTime' => $startTime, 'priority' => $priority];
                 $result['upcomingTasks'][$taskID] = $taskData;
+                if (!isset($result['nextTasksByPriority'][$priority]) || ((isset($result['nextTasksByPriority'][$priority]['startTime']) ? $result['nextTasksByPriority'][$priority]['startTime'] : $currentTime) > (isset($taskData['startTime']) ? $taskData['startTime'] : $currentTime))) {
+                    $result['nextTasksByPriority'][$priority] = $taskData;
+                }
                 if ($startTime === null) {
                     $startTime = $currentTime;
                 }
@@ -480,6 +484,7 @@ class Tasks
             $result['nextTaskStartTime'] = $result['nextTask']['startTime']; // backwards compatibility
         }
         $result['upcomingTasks'] = array_values($result['upcomingTasks']);
+        $result['nextTasksByPriority'] = array_values($result['nextTasksByPriority']);
 
         return $result;
     }

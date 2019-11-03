@@ -442,6 +442,31 @@ class DataTest extends BearFramework\AddonTests\PHPUnitTestCase
     /**
      * 
      */
+    public function testGetStatsNextByPriority()
+    {
+        $app = $this->getApp();
+        $app->tasks->define('stats-test', function () { });
+
+        $currentTime = time();
+        $app->tasks->add('stats-test', null, ['id' => 'id1', 'priority' => 5, 'startTime' => ($currentTime - 6)]);
+        $app->tasks->add('stats-test', null, ['id' => 'id2', 'priority' => 3]);
+        $app->tasks->add('stats-test', null, ['id' => 'id3', 'priority' => 1]);
+        $app->tasks->add('stats-test', null, ['id' => 'id4', 'priority' => 1, 'startTime' => ($currentTime - 4)]);
+        $app->tasks->add('stats-test', null, ['id' => 'id5', 'priority' => 1, 'startTime' => ($currentTime + 4)]);
+        $app->tasks->add('stats-test', null, ['id' => 'id6', 'priority' => 3, 'startTime' => ($currentTime + 4)]);
+        $stats = $app->tasks->getStats();
+        $this->assertTrue($stats['nextTasksByPriority'][0]['id'] === 'id1');
+        $this->assertTrue($stats['nextTasksByPriority'][0]['priority'] === 5);
+        $this->assertTrue($stats['nextTasksByPriority'][1]['id'] === 'id2');
+        $this->assertTrue($stats['nextTasksByPriority'][1]['priority'] === 3);
+        $this->assertTrue($stats['nextTasksByPriority'][2]['id'] === 'id4');
+        $this->assertTrue($stats['nextTasksByPriority'][2]['priority'] === 1);
+    }
+
+
+    /**
+     * 
+     */
     public function testExceptionsInTasks()
     {
         $app = $this->getApp();
