@@ -186,6 +186,7 @@ class Tasks
 
         foreach ($taskLists as $listID => $taskListData) {
             $options = [];
+            $options['id'] = uniqid() . '--internal-multiple';
             $options['listID'] = $listID;
             if ($taskListData['minStartTime'] !== null) {
                 $options['startTime'] = $taskListData['minStartTime'];
@@ -277,7 +278,7 @@ class Tasks
         $app->locks->acquire($lockKey);
         $maxExecutionTime = isset($options['maxExecutionTime']) ? (int) $options['maxExecutionTime'] : 30;
         try {
-            $run = function ($maxExecutionTime) use ($app, $listID, $retryTime) {
+            $run = function ($maxExecutionTime) use ($app, $listID, $retryTime) { // returns TRUE if no more tasks to run now, FALSE - otherwise
                 $list = $this->getListData($listID);
                 if (empty($list)) {
                     return true;
@@ -291,10 +292,10 @@ class Tasks
                     }
                     if ($taskListData[0] === 2) { // version check
                         if ($taskListData[1] === null) { // does not have start time
-                            $tempList[$taskID] = [$taskListData[2], $currentTime];
+                            $tempList[$taskID] = [$taskListData[2], $currentTime, sizeof($tempList)];
                         } else {
                             if ($taskListData[1] <= $currentTime) { // has start time and it is lower than the current time
-                                $tempList[$taskID] = [$taskListData[2], $taskListData[1]];
+                                $tempList[$taskID] = [$taskListData[2], $taskListData[1], sizeof($tempList)];
                             }
                         }
                     }
@@ -306,7 +307,7 @@ class Tasks
                     if ($a[1] !== $b[1]) {
                         return $a[1] < $b[1] ? -1 : 1;
                     }
-                    return 0;
+                    return $a[2] < $b[2] ? -1 : 1;
                 });
                 $sortedList = array_keys($tempList);
                 unset($tempList);
@@ -314,6 +315,7 @@ class Tasks
                     return true;
                 }
                 foreach ($sortedList as $taskID) {
+                    $breakAfterThisTask = false;
                     $retryTaskLater = false;
                     $exceptionToThrow = null;
                     $taskData = $app->data->getValue($this->getTaskDataKey($taskID, $listID));
@@ -327,6 +329,9 @@ class Tasks
                                 $priority = $taskData[3];
                             }
                             $isInternalTask = $definitionID === '--internal-add-multiple-task-definition';
+                            if ($isInternalTask) {
+                                $breakAfterThisTask = true;
+                            }
                             if (!$isInternalTask && $this->hasEventListeners('beforeRunTask')) {
                                 $eventDetails = new \BearFramework\Tasks\BeforeRunTaskEventDetails($definitionID, $taskID, $handlerData);
                                 $this->dispatchEvent('beforeRunTask', $eventDetails);
@@ -369,7 +374,7 @@ class Tasks
                     if ($exceptionToThrow !== null) {
                         throw $exceptionToThrow;
                     }
-                    if (time() - $currentTime >= $maxExecutionTime) {
+                    if ($breakAfterThisTask || time() - $currentTime >= $maxExecutionTime) {
                         return false;
                     }
                 }

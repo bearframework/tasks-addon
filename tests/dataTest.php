@@ -156,7 +156,8 @@ class DataTest extends BearFramework\AddonTests\PHPUnitTestCase
     public function testIgnoreIfExists1()
     {
         $app = $this->getApp();
-        $app->tasks->define('do-something', function ($data) use ($app) { });
+        $app->tasks->define('do-something', function ($data) use ($app) {
+        });
 
         $app->tasks->add('do-something', null, ['id' => 'id1']);
         $exceptionMessage = '';
@@ -174,7 +175,8 @@ class DataTest extends BearFramework\AddonTests\PHPUnitTestCase
     public function testIgnoreIfExists2()
     {
         $app = $this->getApp();
-        $app->tasks->define('do-something', function ($data) use ($app) { });
+        $app->tasks->define('do-something', function ($data) use ($app) {
+        });
 
         $app->tasks->add('do-something', null, ['id' => 'id1']);
         $app->tasks->add('do-something', null, ['id' => 'id1', 'ignoreIfExists' => true]); // no error expected
@@ -295,6 +297,52 @@ class DataTest extends BearFramework\AddonTests\PHPUnitTestCase
     /**
      * 
      */
+    public function testMultipleListsPriority()
+    {
+        $app = $this->getApp();
+
+        $results = [];
+        $app->tasks->define('test', function ($data) use (&$results) {
+            $results[] = $data;
+        });
+
+        $app->tasks->add('test', 'last', ['priority' => 4]);
+        $app->tasks->add('test', 'first', ['priority' => 3]);
+        $tasks = [];
+        for ($i = 0; $i < 20; $i++) {
+            $tasks[] = ['definitionID' => 'test', 'data' => 'other' . ($i + 1), 'options' => ['priority' => 3]];
+        }
+        $app->tasks->addMultiple($tasks);
+        $app->tasks->run();
+        $this->assertTrue($results === array(
+            0 => 'first',
+            1 => 'other1',
+            2 => 'other2',
+            3 => 'other3',
+            4 => 'other4',
+            5 => 'other5',
+            6 => 'other6',
+            7 => 'other7',
+            8 => 'other8',
+            9 => 'other9',
+            10 => 'other10',
+            11 => 'other11',
+            12 => 'other12',
+            13 => 'other13',
+            14 => 'other14',
+            15 => 'other15',
+            16 => 'other16',
+            17 => 'other17',
+            18 => 'other18',
+            19 => 'other19',
+            20 => 'other20',
+            21 => 'last',
+        ));
+    }
+
+    /**
+     * 
+     */
     public function testAddMultipleInMultipleLists()
     {
         $app = $this->getApp();
@@ -395,7 +443,8 @@ class DataTest extends BearFramework\AddonTests\PHPUnitTestCase
     public function testGetStats()
     {
         $app = $this->getApp();
-        $app->tasks->define('sum', function ($data) { });
+        $app->tasks->define('sum', function ($data) {
+        });
 
         $currentTime = time();
         $app->tasks->add('sum', ['a' => 1, 'b' => 2], ['startTime' => $currentTime - 5]);
@@ -413,7 +462,8 @@ class DataTest extends BearFramework\AddonTests\PHPUnitTestCase
     public function testGetStatsNextPriority1()
     {
         $app = $this->getApp();
-        $app->tasks->define('stats-test', function () { });
+        $app->tasks->define('stats-test', function () {
+        });
 
         $currentTime = time();
         $app->tasks->add('stats-test', null, ['id' => 'id1', 'priority' => 5, 'startTime' => ($currentTime - 6)]);
@@ -429,7 +479,8 @@ class DataTest extends BearFramework\AddonTests\PHPUnitTestCase
     public function testGetStatsNextPriority2()
     {
         $app = $this->getApp();
-        $app->tasks->define('stats-test', function () { });
+        $app->tasks->define('stats-test', function () {
+        });
 
         $currentTime = time();
         $app->tasks->add('stats-test', null, ['id' => 'id1', 'priority' => 1, 'startTime' => ($currentTime - 4)]);
@@ -445,7 +496,8 @@ class DataTest extends BearFramework\AddonTests\PHPUnitTestCase
     public function testGetStatsNextByPriority()
     {
         $app = $this->getApp();
-        $app->tasks->define('stats-test', function () { });
+        $app->tasks->define('stats-test', function () {
+        });
 
         $currentTime = time();
         $app->tasks->add('stats-test', null, ['id' => 'id1', 'priority' => 5, 'startTime' => ($currentTime - 6)]);
