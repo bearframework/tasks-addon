@@ -186,7 +186,7 @@ class Tasks
 
         foreach ($taskLists as $listID => $taskListData) {
             $options = [];
-            $options['id'] = uniqid() . '--internal-multiple';
+            $options['id'] = uniqid() . '--internal-multiple-' . sizeof($taskListData['data']); // for debugging purposes
             $options['listID'] = $listID;
             if ($taskListData['minStartTime'] !== null) {
                 $options['startTime'] = $taskListData['minStartTime'];
