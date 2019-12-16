@@ -483,11 +483,12 @@ class DataTest extends BearFramework\AddonTests\PHPUnitTestCase
         });
 
         $currentTime = time();
-        $app->tasks->add('stats-test', null, ['id' => 'id1', 'priority' => 1, 'startTime' => ($currentTime - 4)]);
-        $app->tasks->add('stats-test', null, ['id' => 'id2', 'priority' => 1]);
-        $app->tasks->add('stats-test', null, ['id' => 'id3', 'priority' => 1, 'startTime' => ($currentTime + 4)]);
+        $app->tasks->add('stats-test', 'data1', ['id' => 'id1', 'priority' => 1, 'startTime' => ($currentTime - 4)]);
+        $app->tasks->add('stats-test', 'data2', ['id' => 'id2', 'priority' => 1]);
+        $app->tasks->add('stats-test', 'data3', ['id' => 'id3', 'priority' => 1, 'startTime' => ($currentTime + 4)]);
         $stats = $app->tasks->getStats();
         $this->assertTrue($stats['nextTask']['id'] === 'id1');
+        $this->assertTrue($stats['nextTask']['data'] === 'data1');
     }
 
     /**

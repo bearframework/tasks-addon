@@ -318,10 +318,9 @@ class Tasks
                     $breakAfterThisTask = false;
                     $retryTaskLater = false;
                     $exceptionToThrow = null;
-                    $taskData = $app->data->getValue($this->getTaskDataKey($taskID, $listID));
-                    $taskData = $taskData === null ? [] : json_decode(gzuncompress($taskData), true);
+                    $taskData = $this->getTaskData($listID, $taskID);
                     $priority = 3;
-                    if (isset($taskData[0])) {
+                    if ($taskData !== null && isset($taskData[0])) {
                         if ($taskData[0] === 1 || $taskData[0] === 2) { // format version
                             $definitionID = $taskData[1];
                             $handlerData = $taskData[2];
@@ -396,6 +395,20 @@ class Tasks
         }
         $app->locks->release($lockKey);
         return $this;
+    }
+
+    /**
+     * Returns the raw information about a task
+     * 
+     * @param string $listID The list ID.
+     * @param string $taskID The task ID.
+     * @return array|null The task raw data.
+     */
+    private function getTaskData(string $listID, string $taskID): ?array
+    {
+        $app = App::get();
+        $taskData = $app->data->getValue($this->getTaskDataKey($taskID, $listID));
+        return $taskData === null ? null : json_decode(gzuncompress($taskData), true);
     }
 
     /**
@@ -486,6 +499,8 @@ class Tasks
         $nextTaskID = key($tempList);
         if ($nextTaskID !== null) {
             $result['nextTask'] = $result['upcomingTasks'][$nextTaskID];
+            $nextTaskData = $this->getTaskData($listID, $nextTaskID);
+            $result['nextTask']['data'] = $nextTaskData === null ? null : $nextTaskData[2];
             $result['nextTaskStartTime'] = $result['nextTask']['startTime']; // backwards compatibility
         }
         $result['upcomingTasks'] = array_values($result['upcomingTasks']);
