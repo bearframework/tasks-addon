@@ -278,7 +278,7 @@ class Tasks
         $app->locks->acquire($lockKey);
         $maxExecutionTime = isset($options['maxExecutionTime']) ? (int) $options['maxExecutionTime'] : 30;
         try {
-            $run = function ($maxExecutionTime) use ($app, $listID, $retryTime) { // returns TRUE if no more tasks to run now, FALSE - otherwise
+            $run = function ($maxExecutionTime) use ($listID, $retryTime) { // returns TRUE if no more tasks to run now, FALSE - otherwise
                 $list = $this->getListData($listID);
                 if (empty($list)) {
                     return true;
