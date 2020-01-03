@@ -408,7 +408,11 @@ class Tasks
     {
         $app = App::get();
         $taskData = $app->data->getValue($this->getTaskDataKey($taskID, $listID));
-        return $taskData === null ? null : json_decode(gzuncompress($taskData), true);
+        try {
+            return $taskData === null ? null : json_decode(gzuncompress($taskData), true);
+        } catch (\Exception $e) {
+            return null;
+        }
     }
 
     /**
