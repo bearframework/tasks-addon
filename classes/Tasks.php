@@ -514,6 +514,35 @@ class Tasks
     }
 
     /**
+     * Returns information about the task in the list specified.
+     * 
+     * @param string $listID
+     * @param string $taskID
+     * @return array|null
+     */
+    public function getTaskStats(string $listID, string $taskID): ?array
+    {
+        $taskData = $this->getTaskData($listID, $taskID);
+        if ($taskData !== null) {
+            $result = [];
+            $list = $this->getListData($listID);
+            if (isset($list[$taskID])) {
+                $taskListData = $list[$taskID];
+                if ($taskData[0] === 1 || $taskData[0] === 2) {
+                    $result['definitionID'] = $taskData[1];
+                    $result['data'] = $taskData[2];
+                    $result['priority'] = $taskData[0] === 2 ? $taskData[3] : 3;
+                }
+                if ($taskListData[0] === 1 || $taskListData[0] === 2) {
+                    $result['startTime'] = $taskListData[1];
+                }
+                return $result;
+            }
+        }
+        return null;
+    }
+
+    /**
      * 
      * @param string $listID
      * @return array

@@ -578,4 +578,31 @@ class DataTest extends BearFramework\AddonTests\PHPUnitTestCase
         $this->assertTrue($results[3] === 'id2');
         $this->assertTrue($results[4] === 'id1');
     }
+
+    /**
+     * 
+     * @return void
+     */
+    public function testTaskStats()
+    {
+        $app = $this->getApp();
+        $app->tasks->define('task-stats-test', function () {
+        });
+
+        $currentTime = time();
+        $app->tasks->add('task-stats-test', ['value' => '1'], ['id' => 'id1', 'priority' => 5, 'startTime' => ($currentTime - 6)]);
+        $app->tasks->add('task-stats-test', ['value' => '2'], ['id' => 'id2']);
+        $stats = $app->tasks->getTaskStats('', 'id1');
+        $this->assertTrue($stats['definitionID'] === 'task-stats-test');
+        $this->assertTrue($stats['data'] === ['value' => '1']);
+        $this->assertTrue($stats['priority'] === 5);
+        $this->assertTrue($stats['startTime'] === ($currentTime - 6));
+        $stats = $app->tasks->getTaskStats('', 'id2');
+        $this->assertTrue($stats['definitionID'] === 'task-stats-test');
+        $this->assertTrue($stats['data'] === ['value' => '2']);
+        $this->assertTrue($stats['priority'] === 3);
+        $this->assertTrue($stats['startTime'] === null);
+        $stats = $app->tasks->getTaskStats('', 'id3');
+        $this->assertTrue($stats === null);
+    }
 }
