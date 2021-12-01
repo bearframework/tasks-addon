@@ -13,10 +13,10 @@ $app = App::get();
 $context = $app->contexts->get(__DIR__);
 
 $context->classes
-        ->add('BearFramework\Tasks', 'classes/Tasks.php')
-        ->add('BearFramework\Tasks\*', 'classes/Tasks/*.php');
+    ->add('BearFramework\Tasks', 'classes/Tasks.php')
+    ->add('BearFramework\Tasks\*', 'classes/Tasks/*.php');
 
 $app->shortcuts
-        ->add('tasks', function() {
-            return new \BearFramework\Tasks();
-        });
+    ->add('tasks', function () {
+        return new \BearFramework\Tasks();
+    });

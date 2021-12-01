@@ -27,17 +27,15 @@ class RunTaskEventDetails
     public function __construct(string $definitionID, string $taskID, $data)
     {
         $this
-                ->defineProperty('definitionID', [
-                    'type' => 'string'
-                ])
-                ->defineProperty('taskID', [
-                    'type' => 'string'
-                ])
-                ->defineProperty('data')
-        ;
+            ->defineProperty('definitionID', [
+                'type' => 'string'
+            ])
+            ->defineProperty('taskID', [
+                'type' => 'string'
+            ])
+            ->defineProperty('data');
         $this->definitionID = $definitionID;
         $this->taskID = $taskID;
         $this->data = $data;
     }
-
 }
