@@ -12,9 +12,12 @@ namespace BearFramework\Tasks;
 /**
  * @property-read string $definitionID
  * @property-read string $taskID
+ * @property-read string $listID
+ * @property-read int|null $startTime
+ * @property-read int|null $priority
  * @property-read mixed $data
  */
-class BeforeRunTaskEventDetails
+class AddTaskEventDetails
 {
 
     use \IvoPetkov\DataObjectTrait;
@@ -23,9 +26,12 @@ class BeforeRunTaskEventDetails
      * 
      * @param string $definitionID
      * @param string $taskID
+     * @param string $listID
+     * @param int|null $startTime
+     * @param int|null $priority
      * @param mixed $data
      */
-    public function __construct(string $definitionID, string $taskID, $data)
+    public function __construct(string $definitionID, string $taskID, string $listID, int $startTime = null, int $priority = null, $data = null)
     {
         $this
             ->defineProperty('definitionID', [
@@ -40,6 +46,27 @@ class BeforeRunTaskEventDetails
                 'readonly' => true,
                 'get' => function () use ($taskID) {
                     return $taskID;
+                }
+            ])
+            ->defineProperty('listID', [
+                'type' => 'string',
+                'readonly' => true,
+                'get' => function () use ($listID) {
+                    return $listID;
+                }
+            ])
+            ->defineProperty('startTime', [
+                'type' => '?int',
+                'readonly' => true,
+                'get' => function () use ($startTime) {
+                    return $startTime;
+                }
+            ])
+            ->defineProperty('priority', [
+                'type' => '?int',
+                'readonly' => true,
+                'get' => function () use ($priority) {
+                    return $priority;
                 }
             ])
             ->defineProperty('data', [

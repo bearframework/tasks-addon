@@ -10,9 +10,9 @@
 namespace BearFramework\Tasks;
 
 /**
- * @property string $definitionID
- * @property string $taskID
- * @property array $data
+ * @property-read string $definitionID
+ * @property-read string $taskID
+ * @property-read mixed $data
  */
 class RunTaskEventDetails
 {
@@ -21,21 +21,32 @@ class RunTaskEventDetails
 
     /**
      * 
-     * @param string $filename
-     * @param array $options
+     * @param string $definitionID
+     * @param string $taskID
+     * @param mixed $data
      */
     public function __construct(string $definitionID, string $taskID, $data)
     {
         $this
             ->defineProperty('definitionID', [
-                'type' => 'string'
+                'type' => 'string',
+                'readonly' => true,
+                'get' => function () use ($definitionID) {
+                    return $definitionID;
+                }
             ])
             ->defineProperty('taskID', [
-                'type' => 'string'
+                'type' => 'string',
+                'readonly' => true,
+                'get' => function () use ($taskID) {
+                    return $taskID;
+                }
             ])
-            ->defineProperty('data');
-        $this->definitionID = $definitionID;
-        $this->taskID = $taskID;
-        $this->data = $data;
+            ->defineProperty('data', [
+                'readonly' => true,
+                'get' => function () use ($data) {
+                    return $data;
+                }
+            ]);
     }
 }

@@ -13,6 +13,11 @@ use BearFramework\App;
 
 /**
  * 
+ * @event \BearFramework\Tasks\BeforeRunEventDetails beforeRun
+ * @event \BearFramework\Tasks\RunEventDetails run
+ * @event \BearFramework\Tasks\RunTaskEventDetails addTask
+ * @event \BearFramework\Tasks\BeforeRunTaskEventDetails beforeRunTask
+ * @event \BearFramework\Tasks\RunTaskEventDetails runTask
  */
 class Tasks
 {
@@ -103,7 +108,10 @@ class Tasks
         ];
         $app->data->setValue($this->getTaskDataKey($taskID, $listID), gzcompress(json_encode($taskData)));
         $this->unlockList($listID);
-        $this->dispatchEvent('addTask');
+        if ($this->hasEventListeners('addTask')) {
+            $eventDetails = new \BearFramework\Tasks\AddTaskEventDetails($definitionID, $taskID, $listID, $startTime, $priority, $data);
+            $this->dispatchEvent('addTask', $eventDetails);
+        }
         return $this;
     }
 
@@ -271,8 +279,22 @@ class Tasks
         $app = App::get();
         $listID = isset($options['listID']) ? (string) $options['listID'] : '';
         $retryTime = isset($options['retryTime']) ? (string) $options['retryTime'] : 3600;
+
+        if ($this->hasEventListeners('beforeRun')) {
+            $eventDetails = new \BearFramework\Tasks\BeforeRunEventDetails($listID);
+            $this->dispatchEvent('beforeRun', $eventDetails);
+        }
+
+        $dispatchOnRunEvent = function () use ($listID) {
+            if ($this->hasEventListeners('run')) {
+                $eventDetails = new \BearFramework\Tasks\RunEventDetails($listID);
+                $this->dispatchEvent('run', $eventDetails);
+            }
+        };
+
         $lockKey = 'tasks-run-' . md5($listID);
         if ($app->locks->exists($lockKey)) {
+            $dispatchOnRunEvent();
             return $this;
         }
         $app->locks->acquire($lockKey);
@@ -394,6 +416,7 @@ class Tasks
             throw $e;
         }
         $app->locks->release($lockKey);
+        $dispatchOnRunEvent();
         return $this;
     }
 

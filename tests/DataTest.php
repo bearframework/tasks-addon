@@ -156,8 +156,7 @@ class DataTest extends BearFramework\AddonTests\PHPUnitTestCase
     public function testIgnoreIfExists1()
     {
         $app = $this->getApp();
-        $app->tasks->define('do-something', function ($data) use ($app) {
-        });
+        $app->tasks->define('do-something', function ($data) use ($app) {});
 
         $app->tasks->add('do-something', null, ['id' => 'id1']);
         $exceptionMessage = '';
@@ -175,8 +174,7 @@ class DataTest extends BearFramework\AddonTests\PHPUnitTestCase
     public function testIgnoreIfExists2()
     {
         $app = $this->getApp();
-        $app->tasks->define('do-something', function ($data) use ($app) {
-        });
+        $app->tasks->define('do-something', function ($data) use ($app) {});
 
         $app->tasks->add('do-something', null, ['id' => 'id1']);
         $app->tasks->add('do-something', null, ['id' => 'id1', 'ignoreIfExists' => true]); // no error expected
@@ -418,6 +416,19 @@ class DataTest extends BearFramework\AddonTests\PHPUnitTestCase
         });
 
         $eventsLog = [];
+
+        $app->tasks->addEventListener('beforeRun', function (\BearFramework\Tasks\BeforeRunEventDetails $details) use (&$eventsLog) {
+            $eventsLog[] = ['beforeRun', $details->listID];
+        });
+
+        $app->tasks->addEventListener('run', function (\BearFramework\Tasks\RunEventDetails $details) use (&$eventsLog) {
+            $eventsLog[] = ['run', $details->listID];
+        });
+
+        $app->tasks->addEventListener('addTask', function (\BearFramework\Tasks\AddTaskEventDetails $details) use (&$eventsLog) {
+            $eventsLog[] = ['addTask', $details->definitionID, $details->taskID, $details->listID, $details->startTime, $details->priority, $details->data];
+        });
+
         $app->tasks->addEventListener('beforeRunTask', function (\BearFramework\Tasks\BeforeRunTaskEventDetails $details) use (&$eventsLog) {
             $eventsLog[] = ['beforeRunTask', $details->definitionID, $details->taskID, $details->data];
         });
@@ -426,15 +437,20 @@ class DataTest extends BearFramework\AddonTests\PHPUnitTestCase
             $eventsLog[] = ['runTask', $details->definitionID, $details->taskID, $details->data];
         });
 
-        $app->tasks->add('sum', ['a' => 1, 'b' => 2], ['id' => 'sum1']);
+        $app->tasks->add('sum', ['a' => 1, 'b' => 2], ['id' => 'sum1', 'startTime' => 1000000001, 'priority' => 2]);
         $app->tasks->add('sum', ['a' => 2, 'b' => 3], ['id' => 'sum2']);
+
         $app->tasks->run();
 
-        $this->assertTrue(sizeof($eventsLog) === 4);
-        $this->assertTrue($eventsLog[0] === ['beforeRunTask', 'sum', 'sum1', ['a' => 1, 'b' => 2]]);
-        $this->assertTrue($eventsLog[1] === ['runTask', 'sum', 'sum1', ['a' => 1, 'b' => 2]]);
-        $this->assertTrue($eventsLog[2] === ['beforeRunTask', 'sum', 'sum2', ['a' => 2, 'b' => 3]]);
-        $this->assertTrue($eventsLog[3] === ['runTask', 'sum', 'sum2', ['a' => 2, 'b' => 3]]);
+        $this->assertTrue(sizeof($eventsLog) === 8);
+        $this->assertTrue($eventsLog[0] === ['addTask', 'sum', 'sum1', '', 1000000001, 2, ['a' => 1, 'b' => 2]]);
+        $this->assertTrue($eventsLog[1] === ['addTask', 'sum', 'sum2', '',  null, 3, ['a' => 2, 'b' => 3]]);
+        $this->assertTrue($eventsLog[2] === ['beforeRun', '']);
+        $this->assertTrue($eventsLog[3] === ['beforeRunTask', 'sum', 'sum1', ['a' => 1, 'b' => 2]]);
+        $this->assertTrue($eventsLog[4] === ['runTask', 'sum', 'sum1', ['a' => 1, 'b' => 2]]);
+        $this->assertTrue($eventsLog[5] === ['beforeRunTask', 'sum', 'sum2', ['a' => 2, 'b' => 3]]);
+        $this->assertTrue($eventsLog[6] === ['runTask', 'sum', 'sum2', ['a' => 2, 'b' => 3]]);
+        $this->assertTrue($eventsLog[7] === ['run', '']);
     }
 
     /**
@@ -443,8 +459,7 @@ class DataTest extends BearFramework\AddonTests\PHPUnitTestCase
     public function testGetStats()
     {
         $app = $this->getApp();
-        $app->tasks->define('sum', function ($data) {
-        });
+        $app->tasks->define('sum', function ($data) {});
 
         $currentTime = time();
         $app->tasks->add('sum', ['a' => 1, 'b' => 2], ['startTime' => $currentTime - 5]);
@@ -462,8 +477,7 @@ class DataTest extends BearFramework\AddonTests\PHPUnitTestCase
     public function testGetStatsNextPriority1()
     {
         $app = $this->getApp();
-        $app->tasks->define('stats-test', function () {
-        });
+        $app->tasks->define('stats-test', function () {});
 
         $currentTime = time();
         $app->tasks->add('stats-test', null, ['id' => 'id1', 'priority' => 5, 'startTime' => ($currentTime - 6)]);
@@ -479,8 +493,7 @@ class DataTest extends BearFramework\AddonTests\PHPUnitTestCase
     public function testGetStatsNextPriority2()
     {
         $app = $this->getApp();
-        $app->tasks->define('stats-test', function () {
-        });
+        $app->tasks->define('stats-test', function () {});
 
         $currentTime = time();
         $app->tasks->add('stats-test', 'data1', ['id' => 'id1', 'priority' => 1, 'startTime' => ($currentTime - 4)]);
@@ -497,8 +510,7 @@ class DataTest extends BearFramework\AddonTests\PHPUnitTestCase
     public function testGetStatsNextByPriority()
     {
         $app = $this->getApp();
-        $app->tasks->define('stats-test', function () {
-        });
+        $app->tasks->define('stats-test', function () {});
 
         $currentTime = time();
         $app->tasks->add('stats-test', null, ['id' => 'id1', 'priority' => 5, 'startTime' => ($currentTime - 6)]);
@@ -586,8 +598,7 @@ class DataTest extends BearFramework\AddonTests\PHPUnitTestCase
     public function testTaskStats()
     {
         $app = $this->getApp();
-        $app->tasks->define('task-stats-test', function () {
-        });
+        $app->tasks->define('task-stats-test', function () {});
 
         $currentTime = time();
         $app->tasks->add('task-stats-test', ['value' => '1'], ['id' => 'id1', 'priority' => 5, 'startTime' => ($currentTime - 6)]);
