@@ -465,10 +465,38 @@ class DataTest extends BearFramework\AddonTests\PHPUnitTestCase
         $app->tasks->add('sum', ['a' => 1, 'b' => 2], ['startTime' => $currentTime - 5]);
         $app->tasks->add('sum', ['a' => 2, 'b' => 3]);
 
+        $checkUpcomingTasksCount = function ($stats) {
+            $this->assertEquals(2, $stats['upcomingTasksCount']);
+        };
+        $checkUpcomingTasks = function ($stats) {
+            $this->assertEquals(2, sizeof($stats['upcomingTasks']));
+        };
+        $checkNextTask = function ($stats) use ($currentTime) {
+            $this->assertEquals($currentTime - 5, $stats['nextTask']['startTime']);
+        };
+        $checkNextTaskStartTime = function ($stats) use ($currentTime) {
+            $this->assertEquals($currentTime - 5, $stats['nextTaskStartTime']);
+        };
+        $checkNextTasksByPriority = function ($stats, bool $checkSize = false) use ($currentTime) {
+            $this->assertEquals(1, sizeof($stats['nextTasksByPriority']));
+            $this->assertEquals($currentTime - 5, $stats['nextTasksByPriority'][0]['startTime']);
+            if ($checkSize) {
+                $this->assertEquals(1, sizeof(array_keys($stats)));
+            }
+        };
+
         $stats = $app->tasks->getStats();
-        $this->assertTrue($stats['upcomingTasksCount'] === 2);
-        $this->assertTrue(sizeof($stats['upcomingTasks']) === 2);
-        $this->assertTrue($stats['nextTaskStartTime'] === $currentTime - 5);
+        $checkUpcomingTasksCount($stats);
+        $checkUpcomingTasks($stats);
+        $checkNextTask($stats);
+        $checkNextTaskStartTime($stats);
+        $checkNextTasksByPriority($stats);
+
+        $checkUpcomingTasksCount($app->tasks->getStats('', ['upcomingTasksCount']), true);
+        $checkUpcomingTasks($app->tasks->getStats('', ['upcomingTasks']), true);
+        $checkNextTask($app->tasks->getStats('', ['nextTask']), true);
+        $checkNextTaskStartTime($app->tasks->getStats('', ['nextTaskStartTime']), true);
+        $checkNextTasksByPriority($app->tasks->getStats('', ['nextTasksByPriority']), true);
     }
 
     /**

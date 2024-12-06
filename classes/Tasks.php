@@ -478,29 +478,55 @@ class Tasks
      * Returns information about the tasks in the list specified.
      * 
      * @param string $listID
+     * @param array $stats List ot stat names to return. Leave empty to return all.
      * @return array
      */
-    public function getStats(string $listID = ''): array
+    public function getStats(string $listID = '', array $stats = []): array
     {
+        $emptyStats = empty($stats);
         $result = [];
-        $result['upcomingTasksCount'] = 0;
-        $result['upcomingTasks'] = [];
-        $result['nextTask'] = null; //deprecated - remove in the future
-        $result['nextTaskStartTime'] = null; //deprecated - remove in the future
-        $result['nextTasksByPriority'] = [];
+        $returnUpcomingTasksCount = $emptyStats || array_search('upcomingTasksCount', $stats) !== false;
+        $returnUpcomingTasks = $emptyStats || array_search('upcomingTasks', $stats) !== false;
+        $returnNextTask = $emptyStats || array_search('nextTask', $stats) !== false;
+        $returnNextTaskStartTime = $emptyStats || array_search('nextTaskStartTime', $stats) !== false;
+        $returnNextTasksByPriority = $emptyStats || array_search('nextTasksByPriority', $stats) !== false;
+        if ($returnUpcomingTasksCount) {
+            $result['upcomingTasksCount'] = 0;
+        }
+        if ($returnUpcomingTasks) {
+            $result['upcomingTasks'] = [];
+        }
+        if ($returnUpcomingTasks || $returnNextTask || $returnNextTaskStartTime) {
+            $upcomingTasks = [];
+        }
+        if ($returnNextTask) {
+            $result['nextTask'] = null; //deprecated - remove in the future
+        }
+        if ($returnNextTaskStartTime) {
+            $result['nextTaskStartTime'] = null; //deprecated - remove in the future
+        }
+        if ($returnNextTasksByPriority) {
+            $result['nextTasksByPriority'] = [];
+        }
 
         $currentTime = time();
         $tempList = [];
         $list = $this->getListData($listID);
         foreach ($list as $taskID => $taskListData) {
-            $result['upcomingTasksCount']++;
+            if ($returnUpcomingTasksCount) {
+                $result['upcomingTasksCount']++;
+            }
             if ($taskListData[0] === 1 || $taskListData[0] === 2) { // version check
                 $startTime = $taskListData[1];
                 $priority = $taskListData[0] === 2 ? $taskListData[2] : 3;
                 $taskData = ['id' => $taskID, 'startTime' => $startTime, 'priority' => $priority];
-                $result['upcomingTasks'][$taskID] = $taskData;
-                if (!isset($result['nextTasksByPriority'][$priority]) || ((isset($result['nextTasksByPriority'][$priority]['startTime']) ? $result['nextTasksByPriority'][$priority]['startTime'] : $currentTime) > (isset($taskData['startTime']) ? $taskData['startTime'] : $currentTime))) {
-                    $result['nextTasksByPriority'][$priority] = $taskData;
+                if ($returnUpcomingTasks || $returnNextTask || $returnNextTaskStartTime) {
+                    $upcomingTasks[$taskID] = $taskData;
+                }
+                if ($returnNextTasksByPriority) {
+                    if (!isset($result['nextTasksByPriority'][$priority]) || ((isset($result['nextTasksByPriority'][$priority]['startTime']) ? $result['nextTasksByPriority'][$priority]['startTime'] : $currentTime) > (isset($taskData['startTime']) ? $taskData['startTime'] : $currentTime))) {
+                        $result['nextTasksByPriority'][$priority] = $taskData;
+                    }
                 }
                 if ($startTime === null) {
                     $startTime = $currentTime;
@@ -523,16 +549,29 @@ class Tasks
             }
             return 0;
         });
-        $nextTaskID = key($tempList);
-        if ($nextTaskID !== null) {
-            $result['nextTask'] = $result['upcomingTasks'][$nextTaskID];
-            $nextTaskData = $this->getTaskData($listID, $nextTaskID);
-            $result['nextTask']['data'] = $nextTaskData === null ? null : $nextTaskData[2];
-            $result['nextTaskStartTime'] = $result['nextTask']['startTime']; // backwards compatibility
+        if ($returnNextTask || $returnNextTaskStartTime) {
+            $nextTaskID = key($tempList);
+            if ($nextTaskID !== null) {
+                if ($returnNextTask) {
+                    $result['nextTask'] = $upcomingTasks[$nextTaskID];
+                    $nextTaskData = $this->getTaskData($listID, $nextTaskID);
+                    $result['nextTask']['data'] = $nextTaskData === null ? null : $nextTaskData[2];
+                }
+                if ($returnNextTaskStartTime) {
+                    $result['nextTaskStartTime'] = $upcomingTasks[$nextTaskID]['startTime']; // backwards compatibility
+                }
+            }
         }
-        $result['upcomingTasks'] = array_values($result['upcomingTasks']);
-        $result['nextTasksByPriority'] = array_values($result['nextTasksByPriority']);
-
+        if ($returnUpcomingTasks) {
+            $result['upcomingTasks'] = array_values($upcomingTasks);
+        }
+        if ($returnUpcomingTasks || $returnNextTask || $returnNextTaskStartTime) {
+            unset($upcomingTasks);
+        }
+        if ($returnNextTasksByPriority) {
+            $result['nextTasksByPriority'] = array_values($result['nextTasksByPriority']);
+        }
+        //print_r($result);
         return $result;
     }
 
