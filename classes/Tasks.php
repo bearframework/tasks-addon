@@ -35,7 +35,7 @@ class Tasks
      */
     public function __construct()
     {
-        $this->define('--internal-add-multiple-task-definition', function ($tasks) {
+        $this->define('--internal-add-multiple-task-definition', function ($tasks): void {
             $counter = 0;
             foreach ($tasks as $index => $task) {
                 $this->add($task['definitionID'], isset($task['data']) ? $task['data'] : null, isset($task['options']) ? $task['options'] : []);
@@ -194,7 +194,7 @@ class Tasks
 
         foreach ($taskLists as $listID => $taskListData) {
             $options = [];
-            $options['id'] = uniqid() . '--internal-multiple-' . sizeof($taskListData['data']); // for debugging purposes
+            $options['id'] = uniqid() . '--internal-multiple-' . count($taskListData['data']); // for debugging purposes
             $options['listID'] = $listID;
             if ($taskListData['minStartTime'] !== null) {
                 $options['startTime'] = $taskListData['minStartTime'];
@@ -285,7 +285,7 @@ class Tasks
             $this->dispatchEvent('beforeRun', $eventDetails);
         }
 
-        $dispatchOnRunEvent = function () use ($listID) {
+        $dispatchOnRunEvent = function () use ($listID): void {
             if ($this->hasEventListeners('run')) {
                 $eventDetails = new \BearFramework\Tasks\RunEventDetails($listID);
                 $this->dispatchEvent('run', $eventDetails);
@@ -314,10 +314,10 @@ class Tasks
                     }
                     if ($taskListData[0] === 2) { // version check
                         if ($taskListData[1] === null) { // does not have start time
-                            $tempList[$taskID] = [$taskListData[2], $currentTime, sizeof($tempList)];
+                            $tempList[$taskID] = [$taskListData[2], $currentTime, count($tempList)];
                         } else {
                             if ($taskListData[1] <= $currentTime) { // has start time and it is lower than the current time
-                                $tempList[$taskID] = [$taskListData[2], $taskListData[1], sizeof($tempList)];
+                                $tempList[$taskID] = [$taskListData[2], $taskListData[1], count($tempList)];
                             }
                         }
                     }

@@ -31,7 +31,7 @@ class AddTaskEventDetails
      * @param int|null $priority
      * @param mixed $data
      */
-    public function __construct(string $definitionID, string $taskID, string $listID, int $startTime = null, int $priority = null, $data = null)
+    public function __construct(string $definitionID, string $taskID, string $listID, ?int $startTime = null, ?int $priority = null, $data = null)
     {
         $this
             ->defineProperty('definitionID', [
