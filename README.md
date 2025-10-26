@@ -18,10 +18,10 @@ $app->tasks
 $app->tasks
     ->add('definition-id', 'example-value', [
         'id' => 'task-id', // optional
-        'listID' => '', // empty value for the default listi
+        'listID' => '', // empty value for the default list
         'startTime' => time() + 120, // start in 2 minutes
         'priority' => 3, // 1 - lowest, 5 - highest
-        'ignoreIfExists' => true,
+        'ignoreIfExists' => true, // will check the id only
     ]);
 ```
 
