@@ -15,7 +15,7 @@ use BearFramework\App;
  * 
  * @event \BearFramework\Tasks\BeforeRunEventDetails beforeRun
  * @event \BearFramework\Tasks\RunEventDetails run
- * @event \BearFramework\Tasks\RunTaskEventDetails addTask
+ * @event \BearFramework\Tasks\AddTaskEventDetails addTask
  * @event \BearFramework\Tasks\BeforeRunTaskEventDetails beforeRunTask
  * @event \BearFramework\Tasks\RunTaskEventDetails runTask
  */
@@ -571,7 +571,6 @@ class Tasks
         if ($returnNextTasksByPriority) {
             $result['nextTasksByPriority'] = array_values($result['nextTasksByPriority']);
         }
-        //print_r($result);
         return $result;
     }
 
